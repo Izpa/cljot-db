@@ -6,7 +6,7 @@
    [telegrambot-lib.core :as tbot]
    [utils :refer [pformat]]))
 
-(defmethod ig/init-key ::msg-handler [_ {:keys [msg->answer]}]
+(defmethod ig/init-key ::msg-handler [_ {:keys [_msg->answer]}]
   (fn [{:keys [message callback_query] :as upd}]
     (if-let [msg (or message (-> callback_query
                                  :message
@@ -18,7 +18,7 @@
             (log/warn "strange message without chat-id: " (pformat upd)))
           (log/info "Received message")
           (log/info (pformat msg))
-          (try (msg->answer msg)
+          #_(try (msg->answer msg)
                (catch Exception e
                  (log/error "Catch exception " e))))
       (log/error "unexpected message type" (pformat upd)))))
@@ -49,3 +49,22 @@
     (let [bot (tbot/create token)]
       (log/info (tbot/get-me bot))
       bot)))
+
+(defn telegram-send
+  ([bot to-id main-content] (telegram-send bot to-id main-content {}))
+  ([bot to-id main-content additional-content]
+   (let [sent_message (tbot/send-message bot
+                                         to-id
+                                         main-content
+                                         (merge {:parse_mode "HTML"}
+                                                additional-content))]
+     (log/info "Send message: "
+               (pformat sent_message))
+     sent_message)))
+
+(defmethod ig/init-key ::telegram-send [_ {:keys [bot]}]
+  (partial telegram-send bot))
+
+(defmethod ig/init-key ::admin? [_ {:keys [admin-chat-ids]}]
+  #(contains? admin-chat-ids %))
+
