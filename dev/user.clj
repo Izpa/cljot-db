@@ -37,14 +37,22 @@
   (stop-watch!)
   (igr/halt))
 
+(defn db []
+  (:db/ds (load-config)))
+
+(defn rollback-db-migrations []
+  (migratus/rollback (db)))
+
+(defn create-migration [migration-name]
+  (migratus/create (db) migration-name))
+
 (comment
   (System/getenv "CLIENT_BOT_TELEGRAM_TOKEN")
 
-  (-> (load-config)
-      :db/ds
-      (migratus/rollback)
-      #_(migratus/create "create-user-and-questions"))
+  (rollback-db-migrations)
 
+  (create-migration "create-file")
+  
   (start-system!)
 
   (stop-system!) ;;stop watch
