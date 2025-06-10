@@ -11,23 +11,34 @@
           :long-polling-config {:timeout #or [#env "CLIENT_BOT_LONG_POLLING_TIMEOUT" 10]
                                 :sleep #or [#env "CLIENT_BOT_LONG_POLLING_SLEEP" 1000]}}
 
-         :dialogue/user-answer {}
+         :model/page-size #int #or [#env "PAGE_SIZE" "10"]
+         :model/select-user {:db-execute! #ig/ref :db/execute!}
+         :model/insert-user! {:db-execute! #ig/ref :db/execute!}
+         :model/insert-file! {:db-execute! #ig/ref :db/execute!}
+         :model/delete-file! {:db-execute! #ig/ref :db/execute!}
+         :model/select-file  {:db-execute! #ig/ref :db/execute!}
+         :model/list-files   {:db-execute! #ig/ref :db/execute!
+                              :page-size #ig/ref :model/page-size}
+         :model/file-total-pages   {:db-execute! #ig/ref :db/execute!
+                                    :page-size #ig/ref :model/page-size}
 
-         :dialogue/admin-answer {}
+         :dialogue/user-states {}
+         :dialogue/update-user-state {:user-states #ig/ref :dialogue/user-states}
+         :dialogue/default-state {:admin? #ig/ref :dialogue/admin?}
 
          :dialogue/admin? {:admin-chat-ids #custom/env-to-set "ADMIN_CHAT_IDS"}
 
          :dialogue/check-invite {:invite #env "INVITE"}
 
          :dialogue/user {:check-invite #ig/ref :dialogue/check-invite
-                         :db-execute! #ig/ref :db/execute!
+                         :insert-user! #ig/ref :model/insert-user!
+                         :select-user #ig/ref :model/select-user
                          :admin? #ig/ref :dialogue/admin?}
 
-         :dialogue/process-msg {:user-answer #ig/ref :dialogue/user-answer
-                                :admin-answer #ig/ref :dialogue/admin-answer
-                                :telegram-send #ig/ref :dialogue/telegram-send
+         :dialogue/process-msg {:telegram-send #ig/ref :dialogue/telegram-send
                                 :user #ig/ref :dialogue/user
-                                :admin? #ig/ref :dialogue/admin?}
+                                :user-states #ig/ref :dialogue/user-states
+                                :states {:default #ig/ref :dialogue/default-state}}
 
          :dialogue/telegram-send {:bot #ig/ref :telegram-bot/client}
 
