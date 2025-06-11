@@ -1,11 +1,11 @@
 (ns minio
-  (:require [integrant.core :as ig])
+  (:require [integrant.core :as ig]
+            [taoensso.timbre :as log])
   (:import [software.amazon.awssdk.auth.credentials AwsBasicCredentials StaticCredentialsProvider]
            [software.amazon.awssdk.regions Region]
-           [software.amazon.awssdk.services.s3 S3Client S3ClientBuilder]
+           [software.amazon.awssdk.services.s3 S3Client]
            [software.amazon.awssdk.services.s3.model CreateBucketRequest PutObjectRequest GetObjectRequest DeleteObjectRequest HeadObjectRequest]
            [software.amazon.awssdk.core.sync RequestBody ResponseTransformer]
-           [software.amazon.awssdk.services.s3 S3Configuration]
            [java.net URI]
            [java.io InputStream]))
 
@@ -31,42 +31,47 @@
                     .build)]
         (.createBucket client req)))
     {:client client
-     :bucket bucket-name}))
+     :bucket-name bucket-name}))
 
 (defmethod ig/halt-key! ::client [_ {:keys [client]}]
   (.close client))
 
-(defmethod ig/init-key ::upload-file! [_ {:keys [client bucket]}]
-  (fn [key ^InputStream input-stream]
-    (let [req (-> (PutObjectRequest/builder)
-                  (.bucket bucket)
-                  (.key key)
-                  .build)]
-      (.putObject client req (RequestBody/fromInputStream input-stream (.available input-stream))))))
-
-(defmethod ig/init-key ::download-file [_ {:keys [client bucket]}]
-  (fn [key]
-    (let [req (-> (GetObjectRequest/builder)
-                  (.bucket bucket)
-                  (.key key)
-                  .build)]
-      (.getObject client req (ResponseTransformer/toInputStream)))))
-
-(defmethod ig/init-key ::delete-file! [_ {:keys [client bucket]}]
-  (fn [key]
-    (let [req (-> (DeleteObjectRequest/builder)
-                  (.bucket bucket)
-                  (.key key)
-                  .build)]
-      (.deleteObject client req))))
-
-(defmethod ig/init-key ::file-exists? [_ {:keys [client bucket]}]
-  (fn [key]
-    (try
-      (let [req (-> (HeadObjectRequest/builder)
-                    (.bucket bucket)
+(defmethod ig/init-key ::upload-file! [_ {{:keys [client bucket-name]} :client}]
+    (log/info "download-file: client=" client " bucket-name=" bucket-name)
+    (fn [key ^InputStream input-stream]
+      (let [bytes (.readAllBytes input-stream)
+            req (-> (PutObjectRequest/builder)
+                    (.bucket bucket-name)
                     (.key key)
                     .build)]
-        (.headObject client req)
-        true)
-      (catch Exception _ false))))
+        (.putObject client req (RequestBody/fromBytes bytes)))))
+
+(defmethod ig/init-key ::download-file [_ {{:keys [client bucket-name]} :client}]
+    (log/info "download-file: client=" client " bucket-name=" bucket-name)
+    (fn [key]
+      (let [req (-> (GetObjectRequest/builder)
+                    (.bucket bucket-name)
+                    (.key key)
+                    .build)]
+        (.getObject client req (ResponseTransformer/toInputStream)))))
+
+(defmethod ig/init-key ::delete-file! [_ {{:keys [client bucket-name]} :client}]
+    (log/info "download-file: client=" client " bucket-name=" bucket-name)
+    (fn [key]
+      (let [req (-> (DeleteObjectRequest/builder)
+                    (.bucket bucket-name)
+                    (.key key)
+                    .build)]
+        (.deleteObject client req))))
+
+(defmethod ig/init-key ::file-exists? [_ {{:keys [client bucket-name]} :client}]
+    (log/info "download-file: client=" client " bucket-name=" bucket-name)
+    (fn [key]
+      (try
+        (let [req (-> (HeadObjectRequest/builder)
+                      (.bucket bucket-name)
+                      (.key key)
+                      .build)]
+          (.headObject client req)
+          true)
+        (catch Exception _ false))))

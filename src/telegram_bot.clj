@@ -3,8 +3,12 @@
    [integrant.core :as ig]
    [long-polling-telegram-bot :refer [long-polling]]
    [taoensso.timbre :as log]
+   [org.httpkit.client :as http]
    [telegrambot-lib.core :as tbot]
    [utils :refer [pformat]]))
+
+(defmethod ig/init-key ::token [_ token]
+  token)
 
 (defmethod ig/init-key ::msg-handler [_ {:keys [process-msg]}]
   (fn [{:keys [message callback_query] :as upd}]
@@ -49,3 +53,15 @@
     (let [bot (tbot/create token)]
       (log/info (tbot/get-me bot))
       bot)))
+
+(defmethod ig/init-key ::download-file [_ {:keys [token bot]}]
+  (fn [file-id callback]
+    (let [file-info (tbot/get-file bot file-id)
+          file-path (get-in file-info [:result :file_path])
+          url (str "https://api.telegram.org/file/bot" token "/" file-path)]
+      (http/get url {:as :stream}
+                (fn [{:keys [status body error]}]
+                  (if (and (= status 200) body)
+                    (callback body file-path)
+                    (throw (ex-info "Failed to fetch Telegram file"
+                                    {:status status :error error}))))))))

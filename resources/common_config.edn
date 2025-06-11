@@ -1,5 +1,10 @@
-#merge [{:telegram-bot/client
-         {:token #env "CLIENT_BOT_TELEGRAM_TOKEN"}
+#merge [{:telegram-bot/token #env "CLIENT_BOT_TELEGRAM_TOKEN"
+         
+         :telegram-bot/client
+         {:token #ig/ref :telegram-bot/token}
+
+         :telegram-bot/download-file {:token #ig/ref :telegram-bot/token
+                                      :bot #ig/ref :telegram-bot/client}
 
          :telegram-bot/msg-handler
          {:process-msg #ig/ref :dialogue/process-msg}
@@ -23,24 +28,26 @@
                                     :page-size #ig/ref :model/page-size}
 
          :dialogue/user-states {}
-         :dialogue/update-user-state {:user-states #ig/ref :dialogue/user-states}
-         :dialogue/default-state {:admin? #ig/ref :dialogue/admin?}
-
-         :dialogue/admin? {:admin-chat-ids #custom/env-to-set "ADMIN_CHAT_IDS"}
-
-         :dialogue/check-invite {:invite #env "INVITE"}
-
-         :dialogue/user {:check-invite #ig/ref :dialogue/check-invite
-                         :insert-user! #ig/ref :model/insert-user!
-                         :select-user #ig/ref :model/select-user
-                         :admin? #ig/ref :dialogue/admin?}
-
-         :dialogue/process-msg {:telegram-send #ig/ref :dialogue/telegram-send
-                                :user #ig/ref :dialogue/user
-                                :user-states #ig/ref :dialogue/user-states
-                                :states {:default #ig/ref :dialogue/default-state}}
-
          :dialogue/telegram-send {:bot #ig/ref :telegram-bot/client}
+         :dialogue/admin? {:admin-chat-ids #custom/env-to-set "TELEGRAM_ADMIN_IDS"}
+         :dialogue/dispatch {:state-name->state #ig/ref :dialogue/state-name->state
+                             :user-states #ig/ref :dialogue/user-states}
+         :dialogue/check-invite {:invite #env "INVITE"}
+         :dialogue/state-name->state {:user-states #ig/ref :dialogue/user-states
+                                      :upload-file! #ig/ref :minio/upload-file!
+                                      :insert-file! #ig/ref :model/insert-file!
+                                      :download-file #ig/ref :telegram-bot/download-file}
+
+         :dialogue/check-user
+         {:select-user #ig/ref :model/select-user
+          :insert-user! #ig/ref :model/insert-user!
+          :check-invite #ig/ref :dialogue/check-invite}
+
+         :dialogue/process-msg
+         {:telegram-send #ig/ref :dialogue/telegram-send
+          :dispatch #ig/ref :dialogue/dispatch
+          :admin? #ig/ref :dialogue/admin?
+          :check-user #ig/ref :dialogue/check-user}
 
          :minio/client
          {:host        #env "S3_API_HOST"
