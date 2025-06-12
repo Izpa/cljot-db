@@ -48,29 +48,38 @@
            :state-data {:file-name (:text msg)})
     (answer "Теперь отправьте само видео или кружок, можно пересланное.")))
 
-(defmethod ig/init-key ::awaiting-video-file-on-file [_ {:keys [user-states
-                                                                upload-file!
-                                                                insert-file!
-                                                                download-file]}]
+(defmethod ig/init-key ::awaiting-video-file-on-file
+  [_ {:keys [user-states upload-file! insert-file! download-file]}]
   (fn [{:keys [answer user-id msg]}]
     (let [file-id (msg-helpers/extract-file-id msg)
           file-name (get-in @user-states [user-id :state-data :file-name])
           is-circle (msg-helpers/circle? msg)]
       (if file-id
         (download-file file-id
-                       (fn [input-stream file-path]
-                         (let [ext (second (re-find #"\.([^.]+)$" file-path))
-                               storage-key (str (UUID/randomUUID)
-                                                (when ext (str "." ext)))]
-                           (upload-file! storage-key input-stream)
-                           (log/info "Saving to DB with: "
-                                     {:name file-name :key storage-key :is-circle is-circle})
-                           (insert-file! {:original-chat-id user-id
-                                          :original-message-id (:message_id msg)
-                                          :original-file-id file-id
-                                          :storage-key storage-key
-                                          :name file-name
-                                          :is-circle is-circle})
-                           (swap! user-states update-in [user-id :state-data] dissoc :file-name)
-                           (answer "Видео загружено."))))
+                       (fn [{:keys [ok? body file-path error]}]
+                         (if ok?
+                           (let [ext (second (re-find #"\.([^.]+)$" file-path))
+                                 storage-key (str (UUID/randomUUID)
+                                                  (when ext (str "." ext)))]
+                             (log/info "Upload file: " (upload-file! storage-key body))
+                             (log/info "Saving to DB with: "
+                                       {:name file-name :key storage-key :is-circle is-circle})
+                             (insert-file! {:original-chat-id user-id
+                                            :original-message-id (:message_id msg)
+                                            :original-file-id file-id
+                                            :storage-key storage-key
+                                            :name file-name
+                                            :is-circle is-circle})
+                             (swap! user-states update-in [user-id :state-data] dissoc :file-name)
+                             (answer "Видео загружено."))
+                           (do
+                             (log/warn "Download failed: " error)
+                             (insert-file! {:original-chat-id user-id
+                                            :original-message-id (:message_id msg)
+                                            :original-file-id file-id
+                                            :name file-name
+                                            :is-circle is-circle})
+                             (answer (str "Файл слишком большой, его сохранность не гарантируется. "
+                                      "Рекомендуется дополнительно сохранить его вручную."))))))
         (answer "Ожидалось видео или кружок.")))))
+

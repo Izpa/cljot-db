@@ -9,7 +9,8 @@
                                        :bot #ig/ref :telegram.core/bot}
 
          :telegram.core/msg-handler
-         {:process-msg #ig/ref :telegram.dialogue.core/process-msg}
+         {:process-msg #ig/ref :telegram.dialogue.core/process-msg
+          :callback-handler #ig/ref :telegram.dialogue.keyboard/handle-callback-query}
 
          :telegram.core/run-bot
          {:bot #ig/ref :telegram.core/bot
@@ -18,7 +19,7 @@
           :long-polling-config {:timeout #or [#env "CLIENT_BOT_LONG_POLLING_TIMEOUT" 10]
                                 :sleep #or [#env "CLIENT_BOT_LONG_POLLING_SLEEP" 1000]}}
 
-         :db.model/page-size #int #or [#env "PAGE_SIZE" "10"]
+         :db.model/page-size #int #or [#env "PAGE_SIZE" "3"]
          :db.model/select-user {:execute! #ig/ref :db.core/execute!}
          :db.model/insert-user! {:execute! #ig/ref :db.core/execute!}
          :db.model/insert-file! {:execute! #ig/ref :db.core/execute!}
@@ -42,7 +43,8 @@
              :read {:do #ig/ref :telegram.dialogue.handler/default-read}}
 
             :on-text
-            {:do #ig/ref :telegram.dialogue.handler/default-on-text}}
+            {:do #ig/ref :telegram.dialogue.keyboard/main-keyboard}
+             :next :default}
 
            :awaiting-video-name
            {:on-text
@@ -84,6 +86,18 @@
           :dispatch #ig/ref :telegram.dialogue.core/dispatch
           :admin? #ig/ref :telegram.dialogue.user/admin?
           :check-user #ig/ref :telegram.dialogue.user/check}
+
+         :telegram.dialogue.keyboard/main-keyboard
+         {:list-files #ig/ref :db.model/list-files
+          :user-states #ig/ref :telegram.dialogue.user/states 
+          :total-pages #ig/ref :db.model/file-total-pages}
+         
+         :telegram.dialogue.keyboard/handle-callback-query
+         {:list-files #ig/ref :db.model/list-files
+          :user-states #ig/ref :telegram.dialogue.user/states
+          :total-pages #ig/ref :db.model/file-total-pages
+          :bot #ig/ref :telegram.core/bot
+          :select-file #ig/ref :db.model/select-file}
 
          :storage/client
          {:host        #env "S3_API_HOST"

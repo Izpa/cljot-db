@@ -3,7 +3,7 @@ CREATE TABLE file (
     original_chat_id BIGINT NOT NULL,
     original_message_id BIGINT NOT NULL,
     original_file_id TEXT,
-    storage_key TEXT NOT NULL,
+    storage_key TEXT,
     is_circle BOOLEAN,
     name TEXT NOT NULL
 );

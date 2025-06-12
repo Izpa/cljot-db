@@ -37,7 +37,7 @@
   (.close client))
 
 (defmethod ig/init-key ::upload-file! [_ {{:keys [client bucket-name]} :client}]
-    (log/info "download-file: client=" client " bucket-name=" bucket-name)
+    (log/info "upload-file: client=" client " bucket-name=" bucket-name)
     (fn [key ^InputStream input-stream]
       (let [bytes (.readAllBytes input-stream)
             req (-> (PutObjectRequest/builder)
@@ -56,7 +56,7 @@
         (.getObject client req (ResponseTransformer/toInputStream)))))
 
 (defmethod ig/init-key ::delete-file! [_ {{:keys [client bucket-name]} :client}]
-    (log/info "download-file: client=" client " bucket-name=" bucket-name)
+    (log/info "delete-file: client=" client " bucket-name=" bucket-name)
     (fn [key]
       (let [req (-> (DeleteObjectRequest/builder)
                     (.bucket bucket-name)

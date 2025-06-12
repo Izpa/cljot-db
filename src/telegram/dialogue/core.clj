@@ -8,7 +8,7 @@
 (defmethod ig/init-key ::dispatch [_ {:keys [fsm user-states]}]
   (fn [msg answer {:keys [is-admin? is-new-user?]}]
     (let [uid        (msg-helpers/user-id msg)
-          {:keys [state-name]} (get @user-states uid {:state-name :default})
+          state-name (or (get-in @user-states [uid :state-name] :default) :default)
           state-def  (get fsm state-name)
           event      (msg-helpers/classify-event msg)
           trigger    (msg-helpers/extract-trigger msg)

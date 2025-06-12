@@ -10,21 +10,26 @@
 (defmethod ig/init-key ::token [_ token]
   token)
 
-(defmethod ig/init-key ::msg-handler [_ {:keys [process-msg]}]
+(defmethod ig/init-key ::msg-handler [_ {:keys [process-msg callback-handler]}]
   (fn [{:keys [message callback_query] :as upd}]
-    (if-let [msg (or message (-> callback_query
-                                 :message
-                                 (assoc :data (:data callback_query))))]
-      (do (when (-> msg
-                    :chat
-                    :id
-                    not)
-            (log/warn "strange message without chat-id: " (pformat upd)))
-          (log/info "Received message")
-          (log/info (pformat msg))
-          (try (process-msg msg)
-               (catch Exception e
-                 (log/error "Catch exception " e))))
+    (cond
+      message
+      (try
+        (log/info "Received message")
+        (log/info (pformat message))
+        (process-msg message)
+        (catch Exception e
+          (log/error "Catch exception " e)))
+
+      callback_query
+      (try
+        (log/info "Received callback")
+        (log/info (pformat callback_query))
+        (callback-handler callback_query)
+        (catch Exception e
+          (log/error "Catch exception in callback " e)))
+
+      :else
       (log/error "unexpected message type" (pformat upd)))))
 
 (defmethod ig/halt-key! ::run-bot [_ {:keys [bot thread]}]
@@ -56,15 +61,18 @@
 
 (defmethod ig/init-key ::download-file [_ {:keys [token bot]}]
   (fn [file-id callback]
-    (let [file-info (tbot/get-file bot file-id)
-          file-path (get-in file-info [:result :file_path])
-          url (str "https://api.telegram.org/file/bot" token "/" file-path)]
-      (http/get url {:as :stream}
-                (fn [{:keys [status body error]}]
-                  (if (and (= status 200) body)
-                    (callback body file-path)
-                    (throw (ex-info "Failed to fetch Telegram file"
-                                    {:status status :error error}))))))))
+    (let [file-info (tbot/get-file bot file-id)]
+      (log/info "Download tg file file-info " file-info)
+      (if-let [file-path (get-in file-info [:result :file_path])]
+        (let [url (str "https://api.telegram.org/file/bot" token "/" file-path)]
+          (http/get url {:as :stream}
+                    (fn [{:keys [status body error]}]
+                      (if (and (= status 200) body)
+                        (callback {:ok? true :body body :file-path file-path})
+                        (callback {:ok? false :error (or error {:status status})})))))
+        (callback {:ok? false
+                   :error {:status :no-file-path
+                           :description (get file-info :description "Unknown error")}})))))
 
 (defn send-message
   ([bot to-id main-content] (send-message bot to-id main-content {}))

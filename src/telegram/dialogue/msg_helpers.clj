@@ -17,7 +17,7 @@
   (cond
     (command-msg? msg) :on-command
     (:text msg) :on-text
-    (or (:video msg) (:video_note msg)) :on-file
+    (or (:video msg) (:video_note msg) (:document msg)) :on-file
     (:callback_query msg) :on-callback
     :else :unknown))
 
@@ -30,8 +30,9 @@
 (defn extract-file-id [msg]
   (or (get-in msg [:video :file_id])
       (get-in msg [:video_note :file_id])
+      (get-in msg [:document :file_id])
       (get-in msg [:forward_from_message :video :file_id])
-      (get-in msg [:forward_from_message :video_note :file_id])))
+      (get-in msg [:forward_from_message :video_note :file_id])
+      (get-in msg [:forward_from_message :document :file_id])))
 
 (def default-error-message "Команда не распознана или недоступна.")
-
