@@ -1,4 +1,4 @@
-(ns long-polling-telegram-bot
+(ns telegram.long-polling
   (:require
    [taoensso.timbre :as log]
    [telegrambot-lib.core :as tbot]))

@@ -1,4 +1,4 @@
-{:db/ds
+{:db.core/ds
  {:migration-dir "migrations"
   :store :database
   :db {:dbtype   "postgresql"

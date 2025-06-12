@@ -1,4 +1,4 @@
-(ns minio
+(ns storage
   (:require [integrant.core :as ig]
             [taoensso.timbre :as log])
   (:import [software.amazon.awssdk.auth.credentials AwsBasicCredentials StaticCredentialsProvider]

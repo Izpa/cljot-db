@@ -1,75 +1,107 @@
-#merge [{:telegram-bot/token #env "CLIENT_BOT_TELEGRAM_TOKEN"
+#merge [{:telegram.core/token #env "TELEGRAM_BOT_TOKEN"
 
-         :telegram-bot/client
-         {:token #ig/ref :telegram-bot/token}
+         :telegram.core/bot
+         {:token #ig/ref :telegram.core/token}
 
-         :telegram-bot/download-file {:token #ig/ref :telegram-bot/token
-                                      :bot #ig/ref :telegram-bot/client}
+         :telegram.core/send-message {:bot #ig/ref :telegram.core/bot}
 
-         :telegram-bot/msg-handler
-         {:process-msg #ig/ref :dialogue/process-msg}
+         :telegram.core/download-file {:token #ig/ref :telegram.core/token
+                                       :bot #ig/ref :telegram.core/bot}
 
-         :telegram-bot/run-client
-         {:bot #ig/ref :telegram-bot/client
+         :telegram.core/msg-handler
+         {:process-msg #ig/ref :telegram.dialogue.core/process-msg}
+
+         :telegram.core/run-bot
+         {:bot #ig/ref :telegram.core/bot
           :url #env "SELF_URL"
-          :msg-handler #ig/ref :telegram-bot/msg-handler
+          :msg-handler #ig/ref :telegram.core/msg-handler
           :long-polling-config {:timeout #or [#env "CLIENT_BOT_LONG_POLLING_TIMEOUT" 10]
                                 :sleep #or [#env "CLIENT_BOT_LONG_POLLING_SLEEP" 1000]}}
 
-         :model/page-size #int #or [#env "PAGE_SIZE" "10"]
-         :model/select-user {:db-execute! #ig/ref :db/execute!}
-         :model/insert-user! {:db-execute! #ig/ref :db/execute!}
-         :model/insert-file! {:db-execute! #ig/ref :db/execute!}
-         :model/delete-file! {:db-execute! #ig/ref :db/execute!}
-         :model/select-file  {:db-execute! #ig/ref :db/execute!}
-         :model/list-files   {:db-execute! #ig/ref :db/execute!
-                              :page-size #ig/ref :model/page-size}
-         :model/file-total-pages   {:db-execute! #ig/ref :db/execute!
-                                    :page-size #ig/ref :model/page-size}
+         :db.model/page-size #int #or [#env "PAGE_SIZE" "10"]
+         :db.model/select-user {:execute! #ig/ref :db.core/execute!}
+         :db.model/insert-user! {:execute! #ig/ref :db.core/execute!}
+         :db.model/insert-file! {:execute! #ig/ref :db.core/execute!}
+         :db.model/delete-file! {:execute! #ig/ref :db.core/execute!}
+         :db.model/select-file  {:execute! #ig/ref :db.core/execute!}
+         :db.model/list-files   {:execute! #ig/ref :db.core/execute!
+                                 :page-size #ig/ref :db.model/page-size}
+         :db.model/file-total-pages   {:execute! #ig/ref :db.core/execute!
+                                       :page-size #ig/ref :db.model/page-size}
 
-         :dialogue/user-states {}
-         :dialogue/telegram-send {:bot #ig/ref :telegram-bot/client}
-         :dialogue/admin? {:admin-chat-ids #custom/env-to-set "TELEGRAM_ADMIN_IDS"}
-         :dialogue/dispatch {:state-name->state #ig/ref :dialogue/state-name->state
-                             :user-states #ig/ref :dialogue/user-states}
-         :dialogue/check-invite {:invite #env "INVITE"}
-         :dialogue/state-name->state
-         {:user-states #ig/ref :dialogue/user-states
-          :upload-file! #ig/ref :minio/upload-file!
-          :insert-file! #ig/ref :model/insert-file!
-          :download-file #ig/ref :telegram-bot/download-file
-          :select-file #ig/ref :model/select-file
-          :minio-download-file #ig/ref :minio/download-file
-          :bot #ig/ref :telegram-bot/client}
+         :telegram.dialogue.user/states {}
+         :telegram.dialogue.user/admin? {:admin-chat-ids #custom/env-to-set "TELEGRAM_ADMIN_IDS"}
 
-         :dialogue/check-user
-         {:select-user #ig/ref :model/select-user
-          :insert-user! #ig/ref :model/insert-user!
-          :check-invite #ig/ref :dialogue/check-invite}
+         :telegram.dialogue.core/dispatch
+         {:user-states #ig/ref :telegram.dialogue.user/states
+          :fsm
+          {:default
+           {:on-command
+            {:upload {:next :awaiting-video-name
+                      :do #ig/ref :telegram.dialogue.handler/default-upload}
+             :read {:do #ig/ref :telegram.dialogue.handler/default-read}}
 
-         :dialogue/process-msg
-         {:telegram-send #ig/ref :dialogue/telegram-send
-          :dispatch #ig/ref :dialogue/dispatch
-          :admin? #ig/ref :dialogue/admin?
-          :check-user #ig/ref :dialogue/check-user}
+            :on-text
+            {:do #ig/ref :telegram.dialogue.handler/default-on-text}}
 
-         :minio/client
+           :awaiting-video-name
+           {:on-text
+            {:next :awaiting-video-file
+             :do #ig/ref :telegram.dialogue.handler/awaiting-video-name-on-text}}
+
+           :awaiting-video-file
+           {:on-file
+            {:next :default
+             :do #ig/ref :telegram.dialogue.handler/awaiting-video-file-on-file}}}}
+
+         :telegram.dialogue.user/check-invite {:invite #env "INVITE"}
+
+         :telegram.dialogue.handler/default-upload {}
+
+         :telegram.dialogue.handler/default-read
+         {:select-file #ig/ref :db.model/select-file
+          :download-file #ig/ref :storage/download-file
+          :bot #ig/ref :telegram.core/bot}
+
+         :telegram.dialogue.handler/default-on-text {}
+
+         :telegram.dialogue.handler/awaiting-video-name-on-text
+         {:user-states #ig/ref :telegram.dialogue.user/states}
+
+         :telegram.dialogue.handler/awaiting-video-file-on-file
+         {:user-states #ig/ref :telegram.dialogue.user/states
+          :upload-file! #ig/ref :storage/upload-file!
+          :insert-file! #ig/ref :db.model/insert-file!
+          :download-file #ig/ref :telegram.core/download-file}
+
+         :telegram.dialogue.user/check
+         {:select-user #ig/ref :db.model/select-user
+          :insert-user! #ig/ref :db.model/insert-user!
+          :check-invite #ig/ref :telegram.dialogue.user/check-invite}
+
+         :telegram.dialogue.core/process-msg
+         {:send-message #ig/ref :telegram.core/send-message
+          :dispatch #ig/ref :telegram.dialogue.core/dispatch
+          :admin? #ig/ref :telegram.dialogue.user/admin?
+          :check-user #ig/ref :telegram.dialogue.user/check}
+
+         :storage/client
          {:host        #env "S3_API_HOST"
           :port        #env "S3_API_PORT"
           :access-key  #env "MINIO_USER"
           :secret-key  #env "MINIO_PASSWORD"
           :bucket-name #env "MINIO_BUCKET"}
 
-         :minio/upload-file!  {:client #ig/ref :minio/client}
-         :minio/download-file {:client #ig/ref :minio/client}
-         :minio/delete-file!  {:client #ig/ref :minio/client}
-         :minio/file-exists?  {:client #ig/ref :minio/client}
+         :storage/upload-file!  {:client #ig/ref :storage/client}
+         :storage/download-file {:client #ig/ref :storage/client}
+         :storage/delete-file!  {:client #ig/ref :storage/client}
+         :storage/file-exists?  {:client #ig/ref :storage/client}
 
-         :db/execute!
-         {:ds #ig/ref #profile {:default :db/ds
+         :db.core/execute!
+         {:ds #ig/ref #profile {:default :db.core/ds
                                 :test :test-utils/db-ds}}
 
-         :http/handler #ig/ref :telegram-bot/msg-handler
+         :http/handler #ig/ref :telegram.core/msg-handler
 
          :http/server {:port #or [#env "HTTP_PORT" 8080]
                        :handler #ig/ref :http/handler}}

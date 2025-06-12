@@ -1,7 +1,7 @@
-(ns telegram-bot
+(ns telegram.core
   (:require
    [integrant.core :as ig]
-   [long-polling-telegram-bot :refer [long-polling]]
+   [telegram.long-polling :refer [long-polling]]
    [taoensso.timbre :as log]
    [org.httpkit.client :as http]
    [telegrambot-lib.core :as tbot]
@@ -27,14 +27,14 @@
                  (log/error "Catch exception " e))))
       (log/error "unexpected message type" (pformat upd)))))
 
-(defmethod ig/halt-key! ::run-client [_ {:keys [bot thread]}]
+(defmethod ig/halt-key! ::run-bot [_ {:keys [bot thread]}]
   (if thread
     (do (log/info "Stop long-polling telegram-bot")
         (.interrupt ^Thread thread))
     (do (log/info "Stop webhook telegram-bot")
         (tbot/delete-webhook bot))))
 
-(defmethod ig/init-key ::run-client [_ {:keys [bot
+(defmethod ig/init-key ::run-bot [_ {:keys [bot
                                                url
                                                long-polling-config
                                                msg-handler]}]
@@ -46,10 +46,10 @@
      {:webhook (tbot/set-webhook bot {:url url
                                       :content-type :multipart})})))
 
-(defmethod ig/init-key ::client [_ {:keys [token]}]
-  (log/info "Start client-bot")
+(defmethod ig/init-key ::bot [_ {:keys [token]}]
+  (log/info "Start bot")
   (if (nil? token)
-    (log/error "No client-bot token")
+    (log/error "No bot token")
     (let [bot (tbot/create token)]
       (log/info (tbot/get-me bot))
       bot)))
@@ -65,3 +65,19 @@
                     (callback body file-path)
                     (throw (ex-info "Failed to fetch Telegram file"
                                     {:status status :error error}))))))))
+
+(defn send-message
+  ([bot to-id main-content] (send-message bot to-id main-content {}))
+  ([bot to-id main-content additional-content]
+   (let [sent_message (tbot/send-message bot
+                                         to-id
+                                         main-content
+                                         (merge {:parse_mode "HTML"}
+                                                additional-content))]
+     (log/info "Send message: "
+               (pformat sent_message))
+     sent_message)))
+
+(defmethod ig/init-key ::send-message [_ {:keys [bot]}]
+  (partial send-message bot))
+
