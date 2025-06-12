@@ -4,5 +4,6 @@ CREATE TABLE file (
     original_message_id BIGINT NOT NULL,
     original_file_id TEXT,
     storage_key TEXT NOT NULL,
+    is_circle BOOLEAN,
     name TEXT NOT NULL
 );

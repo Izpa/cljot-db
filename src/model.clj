@@ -1,6 +1,7 @@
 (ns model
   (:require
-   [integrant.core :as ig]))
+   [integrant.core :as ig])
+  (:import (java.util UUID)))
 
 (defmethod ig/init-key ::page-size [_ page-size]
   page-size)
@@ -42,7 +43,7 @@
   (fn [file-id]
     (db-execute! {:select :*
                   :from :file
-                  :where [:= :id file-id]}
+                  :where [:= :id (UUID/fromString file-id)]}
                  true)))
 
 (defmethod ig/init-key ::list-files [_ {:keys [db-execute! page-size]}]

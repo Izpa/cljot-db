@@ -15,6 +15,10 @@
 (defn command-msg? [msg]
   (and (:text msg) (str/starts-with? (:text msg) "/")))
 
+(defn circle? [msg]
+  (or (contains? msg :video_note)
+      (contains? (get msg :forward_from_message {}) :video_note)))
+
 (defn classify-event [msg]
   (cond
     (command-msg? msg) :on-command
@@ -26,7 +30,7 @@
 (defn extract-trigger [msg]
   (cond
     (:callback_query msg) (get-in msg [:callback_query :data])
-    (command-msg? msg) (-> msg :text (subs 1) keyword)
+    (command-msg? msg) (-> msg :text (str/split #"\s+") first (subs 1) keyword)
     :else :text))
 
 (defn extract-file-id [msg]
@@ -78,7 +82,13 @@
              (= invite received-invite)
              (empty? args))))))
 
-(defmethod ig/init-key ::state-name->state [_ {:keys [user-states upload-file! insert-file! download-file]}]
+(defmethod ig/init-key ::state-name->state [_ {:keys [bot
+                                                      user-states
+                                                      upload-file!
+                                                      insert-file!
+                                                      download-file
+                                                      select-file
+                                                      minio-download-file]}]
   (fn [state-name]
     (get {:default
           {:on-command
@@ -86,7 +96,28 @@
                      :do (fn [{:keys [answer admin?]}]
                            (if admin?
                              (answer "Введите имя видео:")
-                             (answer "Команда недоступна.")))}}
+                             (answer "Команда недоступна.")))}
+            :read {:do (fn [{:keys [answer msg user-id]}]
+                         (let [[_ file-id] (str/split (:text msg) #"\s+")]
+                           (if-not file-id
+                             (answer "Укажите ID файла после /read")
+                             (try
+                               (let [{:keys [original-chat-id original-message-id storage_key name is_circle]}
+                                     (select-file file-id)]
+                                 (try
+                                   (tbot/copy-message bot user-id original-chat-id original-message-id)
+                                   (catch Exception e
+                                     (log/warn e "Copy failed, falling back to download from MinIO")
+                                     (let [input-stream (minio-download-file storage_key)
+                                           file {:content input-stream
+                                                 :filename (or name "video.mp4")}]
+                                       (if is_circle
+                                         (tbot/send-video-note bot user-id file)
+                                         (tbot/send-video bot user-id file {:caption name}))))))
+                               (catch Exception e
+                                 (log/warn e "Файл не найден или не доступен")
+                                 (answer "Файл не найден или больше не доступен."))))))}}
+
            :on-text
            {:do (fn [{:keys [answer msg]}]
                   (log/infof "Default state got on-text: %s" (:text msg))
@@ -107,7 +138,8 @@
            {:next :default
             :do (fn [{:keys [answer user-id msg]}]
                   (let [file-id (extract-file-id msg)
-                        file-name (get-in @user-states [user-id :state-data :file-name])]
+                        file-name (get-in @user-states [user-id :state-data :file-name])
+                        is-circle (circle? msg)]
                     (if file-id
                       (download-file file-id
                                      (fn [input-stream file-path]
@@ -115,12 +147,14 @@
                                              storage-key (str (UUID/randomUUID)
                                                               (when ext (str "." ext)))]
                                          (upload-file! storage-key input-stream)
-                                         (log/info "Saving to DB with: " {:name file-name :key storage-key})
+                                         (log/info "Saving to DB with: "
+                                                   {:name file-name :key storage-key :is-circle is-circle})
                                          (insert-file! {:original_chat_id user-id
                                                         :original_message_id (:message_id msg)
                                                         :original_file_id file-id
                                                         :storage_key storage-key
-                                                        :name file-name})
+                                                        :name file-name
+                                                        :is_circle is-circle})
                                          (swap! user-states update-in [user-id :state-data] dissoc :file-name)
                                          (answer "Видео загружено."))))
                       (answer "Ожидалось видео или кружок."))))}}} state-name)))

@@ -1,5 +1,5 @@
 #merge [{:telegram-bot/token #env "CLIENT_BOT_TELEGRAM_TOKEN"
-         
+
          :telegram-bot/client
          {:token #ig/ref :telegram-bot/token}
 
@@ -33,10 +33,14 @@
          :dialogue/dispatch {:state-name->state #ig/ref :dialogue/state-name->state
                              :user-states #ig/ref :dialogue/user-states}
          :dialogue/check-invite {:invite #env "INVITE"}
-         :dialogue/state-name->state {:user-states #ig/ref :dialogue/user-states
-                                      :upload-file! #ig/ref :minio/upload-file!
-                                      :insert-file! #ig/ref :model/insert-file!
-                                      :download-file #ig/ref :telegram-bot/download-file}
+         :dialogue/state-name->state
+         {:user-states #ig/ref :dialogue/user-states
+          :upload-file! #ig/ref :minio/upload-file!
+          :insert-file! #ig/ref :model/insert-file!
+          :download-file #ig/ref :telegram-bot/download-file
+          :select-file #ig/ref :model/select-file
+          :minio-download-file #ig/ref :minio/download-file
+          :bot #ig/ref :telegram-bot/client}
 
          :dialogue/check-user
          {:select-user #ig/ref :model/select-user
