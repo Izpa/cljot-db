@@ -8,14 +8,13 @@
          :telegram.core/download-file {:token #ig/ref :telegram.core/token
                                        :bot #ig/ref :telegram.core/bot}
 
-         :telegram.core/msg-handler
-         {:process-msg #ig/ref :telegram.dialogue.core/process-msg
-          :callback-handler #ig/ref :telegram.dialogue.keyboard/handle-callback-query}
+         :telegram.core/upd-handler
+         {:process-msg #ig/ref :telegram.dialogue.core/process-msg}
 
          :telegram.core/run-bot
          {:bot #ig/ref :telegram.core/bot
           :url #env "SELF_URL"
-          :msg-handler #ig/ref :telegram.core/msg-handler
+          :upd-handler #ig/ref :telegram.core/upd-handler
           :long-polling-config {:timeout #or [#env "CLIENT_BOT_LONG_POLLING_TIMEOUT" 10]
                                 :sleep #or [#env "CLIENT_BOT_LONG_POLLING_SLEEP" 1000]}}
 
@@ -42,9 +41,13 @@
                       :do #ig/ref :telegram.dialogue.handler/default-upload}
              :read {:do #ig/ref :telegram.dialogue.handler/default-read}}
 
+            :on-callback
+            {:do #ig/ref :telegram.dialogue.keyboard/handle-callback-query
+             :next :default}
+
             :on-text
             {:do #ig/ref :telegram.dialogue.keyboard/main-keyboard}
-             :next :default}
+            :next :default}
 
            :awaiting-video-name
            {:on-text
@@ -89,9 +92,9 @@
 
          :telegram.dialogue.keyboard/main-keyboard
          {:list-files #ig/ref :db.model/list-files
-          :user-states #ig/ref :telegram.dialogue.user/states 
+          :user-states #ig/ref :telegram.dialogue.user/states
           :total-pages #ig/ref :db.model/file-total-pages}
-         
+
          :telegram.dialogue.keyboard/handle-callback-query
          {:list-files #ig/ref :db.model/list-files
           :user-states #ig/ref :telegram.dialogue.user/states
@@ -115,7 +118,7 @@
          {:ds #ig/ref #profile {:default :db.core/ds
                                 :test :test-utils/db-ds}}
 
-         :http/handler #ig/ref :telegram.core/msg-handler
+         :http/handler #ig/ref :telegram.core/upd-handler
 
          :http/server {:port #or [#env "HTTP_PORT" 8080]
                        :handler #ig/ref :http/handler}}

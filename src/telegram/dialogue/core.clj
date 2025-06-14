@@ -1,52 +1,45 @@
 (ns telegram.dialogue.core
   (:require
    [integrant.core :as ig]
-   [taoensso.timbre :as log]
-   [utils :refer [pformat]]
-   [telegram.dialogue.msg-helpers :as msg-helpers]))
+   [taoensso.timbre :as log]))
 
-(defmethod ig/init-key ::dispatch [_ {:keys [fsm user-states]}]
-  (fn [msg answer {:keys [is-admin? is-new-user?]}]
-    (let [uid        (msg-helpers/user-id msg)
-          state-name (or (get-in @user-states [uid :state-name] :default) :default)
-          state-def  (get fsm state-name)
-          event      (msg-helpers/classify-event msg)
-          trigger    (msg-helpers/extract-trigger msg)
-          transition (get-in state-def [event trigger]
-                             (get-in state-def [event]))] ;; fallback on generic event
-      (log/infof "FSM State=%s Event=%s Trigger=%s" state-name event trigger)
-      (log/infof "FSM Transition: %s" (keys transition))
-      (if-let [do-fn (:do transition)]
-        (do
-          (do-fn {:answer answer
-                  :msg msg
-                  :user-id uid
-                  :admin? is-admin?
-                  :new-user? is-new-user?})
-          (log/infof "FSM: new state for user %s → %s" uid (:next transition))
-          (swap! user-states update uid
-                 (fn [state]
-                   (-> state
-                       (assoc :state-name (:next transition))))))
-        (do
-          (log/warnf "FSM: no valid transition for state=%s event=%s trigger=%s"
-                     state-name event trigger)
-          (answer msg-helpers/default-error-message))))))
-
-
-(defmethod ig/init-key ::process-msg [_ {:keys [send-message dispatch admin? check-user]}]
-  (fn [msg]
-  (let [uid      (msg-helpers/user-id msg)
-        text     (:text msg)
-        answer   (partial send-message uid)
-        is-admin (admin? uid)
-        result   (when-not is-admin
-                   (check-user uid text (:chat msg) answer))]
-    (log/info "is-admin? " is-admin)
-    (log/info "check-user " result)
+(defmethod ig/init-key ::user-id->role [_ {:keys [admin-chat-ids select-user]}]
+  (fn [user-id]
     (cond
-      (nil? uid) (log/warn "Strange message without chat-id: " (pformat msg))
-      (or is-admin result)
-      (dispatch msg answer {:is-admin? is-admin
-                            :is-new-user? (= result :new)})
-      :else (answer "This is a private bot. Access denied.")))))
+      (contains? admin-chat-ids user-id) :admin
+      (select-user user-id) :user
+      :else :anonymous)))
+
+(defmethod ig/init-key ::start [_ {:keys [invite insert-user! new-keyboard]}]
+  (fn [upd]
+    (when (= invite
+             (-> upd :val :args first))
+      (insert-user! (:user upd))
+      (new-keyboard upd "Добро пожаловать! Выберите видео:"))))
+
+(defmethod ig/init-key ::fsm [_ {:keys [user-id->role
+                                        user-id->state
+                                        set-user-state!
+                                        config
+                                        send-message!]}]
+  (fn [upd]
+    (let [user-id (-> upd :user :id)
+          role (user-id->role user-id)
+          upd-type (:type upd)
+          state-name (user-id->state user-id)
+          state (get-in [state-name upd-type] config)
+          {:keys [handler
+                  next
+                  roles]} (if (= :command upd-type)
+                            (->> upd :val :command (get state))
+                            state)]
+      (log/info "State: " state-name "; Next: " next "; Roles: " roles)
+      (if (some #{role} roles)
+        (do
+          (handler (assoc-in upd [:user :role] role))
+          (set-user-state! next))
+        (send-message! user-id
+                       (case role
+                         :admin "Неверно настроены права доступа для данного действия"
+                         :user  "Данное действие доступно только администраторам"
+                         :anonymous "Это приватный бот, доступ только по инвайтам"))))))

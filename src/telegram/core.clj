@@ -5,32 +5,64 @@
    [taoensso.timbre :as log]
    [org.httpkit.client :as http]
    [telegrambot-lib.core :as tbot]
+   [clojure.string :as str]
    [utils :refer [pformat]]))
 
 (defmethod ig/init-key ::token [_ token]
   token)
 
-(defmethod ig/init-key ::msg-handler [_ {:keys [process-msg callback-handler]}]
-  (fn [{:keys [message callback_query] :as upd}]
+(defn val+file-tg-type->file-data
+  ([val tg-type]
+   {:type :file
+    :val (assoc val :tg-type tg-type)})
+  ([val tg-type caption]
+   (assoc-in (val+file-tg-type->file-data val tg-type) [:val :caption] caption)))
+
+(defn text->data [text]
+  (if (str/starts-with? text "/")
+        (let [[cmd & args] (-> text (subs 1) (str/split #"\s+"))]
+          {:type :command
+           :val {:command (keyword cmd)
+                 :args args}})
+        {:type :text
+         :val text}))
+
+(defn data->type+val [data]
+  (let [text (or (:data data)
+                 (:text data))]
     (cond
-      message
-      (try
-        (log/info "Received message")
-        (log/info (pformat message))
-        (process-msg message)
-        (catch Exception e
-          (log/error "Catch exception " e)))
+      text (text->data text)
+      (:document data) (val+file-tg-type->file-data (:document data) :document)
+      (:video data) (val+file-tg-type->file-data (:video data) :video)
+      (:video_note data) (val+file-tg-type->file-data (:video_note data) :video_note)
+      (:voice data) (val+file-tg-type->file-data (:voice data) :voice)
+      (:audio data) (val+file-tg-type->file-data (:audio data) :audio)
+      (:photo data) (val+file-tg-type->file-data (:photo data) :photo)
+      :else nil)))
 
-      callback_query
-      (try
-        (log/info "Received callback")
-        (log/info (pformat callback_query))
-        (callback-handler callback_query)
-        (catch Exception e
-          (log/error "Catch exception in callback " e)))
+(defn normalize-upd [upd]
+  (let [clean-upd (or (:callback_query upd)
+                      upd)]
+    (-> (or (:forward_from_message clean-upd)
+            clean-upd)
+        data->type+val
+        (merge {:user (:from clean-upd)
+                :chat (:chat clean-upd)
+                :original-upd upd
+                :message-id (:message_id clean-upd)}))))
 
-      :else
-      (log/error "unexpected message type" (pformat upd)))))
+(defmethod ig/init-key ::upd-handler [_ {:keys [process-msg]}]
+  (fn [upd]
+    (let [normalized-upd (try
+                           (normalize-upd upd)
+                           (catch Exception e
+                             (log/error "Can't normalize upd: " upd)
+                             (log/error "Exception: " e)))]
+      (try
+        (process-msg normalized-upd)
+        (catch Exception e
+          (log/error "Can't process normalized upd: " normalized-upd)
+          (log/error "Exception: " e))))))
 
 (defmethod ig/halt-key! ::run-bot [_ {:keys [bot thread]}]
   (if thread
@@ -40,14 +72,14 @@
         (tbot/delete-webhook bot))))
 
 (defmethod ig/init-key ::run-bot [_ {:keys [bot
-                                               url
-                                               long-polling-config
-                                               msg-handler]}]
+                                            url
+                                            long-polling-config
+                                            upd-handler]}]
   (log/info "Start telegram bot: " (or url long-polling-config))
   (merge
    {:bot bot}
    (if (nil? url)
-     {:thread (long-polling bot long-polling-config msg-handler)}
+     {:thread (long-polling bot long-polling-config upd-handler)}
      {:webhook (tbot/set-webhook bot {:url url
                                       :content-type :multipart})})))
 
@@ -74,8 +106,8 @@
                    :error {:status :no-file-path
                            :description (get file-info :description "Unknown error")}})))))
 
-(defn send-message
-  ([bot to-id main-content] (send-message bot to-id main-content {}))
+(defn send-message!
+  ([bot to-id main-content] (send-message! bot to-id main-content {}))
   ([bot to-id main-content additional-content]
    (let [sent_message (tbot/send-message bot
                                          to-id
@@ -86,6 +118,5 @@
                (pformat sent_message))
      sent_message)))
 
-(defmethod ig/init-key ::send-message [_ {:keys [bot]}]
-  (partial send-message bot))
-
+(defmethod ig/init-key ::send-message! [_ {:keys [bot]}]
+  (partial send-message! bot))
