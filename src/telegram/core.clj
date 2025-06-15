@@ -42,6 +42,7 @@
 
 (defn normalize-upd [upd]
   (let [clean-upd (or (:callback_query upd)
+                      (:message upd)
                       upd)]
     (-> (or (:forward_from_message clean-upd)
             clean-upd)
@@ -51,15 +52,15 @@
                 :original-upd upd
                 :message-id (:message_id clean-upd)}))))
 
-(defmethod ig/init-key ::upd-handler [_ {:keys [process-msg]}]
+(defmethod ig/init-key ::upd-handler [_ dialogue]
   (fn [upd]
+    (log/info "UPD: " (pformat upd))
     (let [normalized-upd (try
                            (normalize-upd upd)
                            (catch Exception e
-                             (log/error "Can't normalize upd: " upd)
-                             (log/error "Exception: " e)))]
+                             (log/error "Can't normalize upd. Exception: " e)))]
       (try
-        (process-msg normalized-upd)
+        (dialogue normalized-upd)
         (catch Exception e
           (log/error "Can't process normalized upd: " normalized-upd)
           (log/error "Exception: " e))))))
@@ -83,7 +84,7 @@
      {:webhook (tbot/set-webhook bot {:url url
                                       :content-type :multipart})})))
 
-(defmethod ig/init-key ::bot [_ {:keys [token]}]
+(defmethod ig/init-key ::bot [_ token]
   (log/info "Start bot")
   (if (nil? token)
     (log/error "No bot token")
@@ -118,5 +119,5 @@
                (pformat sent_message))
      sent_message)))
 
-(defmethod ig/init-key ::send-message! [_ {:keys [bot]}]
+(defmethod ig/init-key ::send-message! [_ bot]
   (partial send-message! bot))

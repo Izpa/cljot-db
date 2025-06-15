@@ -1,15 +1,13 @@
 #merge [{:telegram.core/token #env "TELEGRAM_BOT_TOKEN"
 
-         :telegram.core/bot
-         {:token #ig/ref :telegram.core/token}
+         :telegram.core/bot #ig/ref :telegram.core/token
 
-         :telegram.core/send-message {:bot #ig/ref :telegram.core/bot}
+         :telegram.core/send-message! #ig/ref :telegram.core/bot
 
          :telegram.core/download-file {:token #ig/ref :telegram.core/token
                                        :bot #ig/ref :telegram.core/bot}
 
-         :telegram.core/upd-handler
-         {:process-msg #ig/ref :telegram.dialogue.core/process-msg}
+         :telegram.core/upd-handler #ig/ref :telegram.dialogue.core/fsm
 
          :telegram.core/run-bot
          {:bot #ig/ref :telegram.core/bot
@@ -29,78 +27,102 @@
          :db.model/file-total-pages   {:execute! #ig/ref :db.core/execute!
                                        :page-size #ig/ref :db.model/page-size}
 
-         :telegram.dialogue.user/states {}
-         :telegram.dialogue.user/admin? {:admin-chat-ids #custom/env-to-set "TELEGRAM_ADMIN_IDS"}
-
-         :telegram.dialogue.core/dispatch
-         {:user-states #ig/ref :telegram.dialogue.user/states
-          :fsm
+         :telegram.dialogue.core/fsm
+         {:user-id->role #ig/ref :telegram.dialogue.core/user-id->role
+          :user-id->state #ig/ref :telegram.dialogue.temp-data/user-id->state
+          :set-user-state! #ig/ref :telegram.dialogue.temp-data/set-user-state!
+          :send-message! #ig/ref :telegram.core/send-message!
+          :default-state {:handler #ig/ref :telegram.dialogue.keyboard/new-keyboard
+                          :roles [:user :admin]}
+          :cofig
           {:default
-           {:on-command
-            {:upload {:next :awaiting-video-name
-                      :do #ig/ref :telegram.dialogue.handler/default-upload}
-             :read {:do #ig/ref :telegram.dialogue.handler/default-read}}
+           {:command
+            {:start {:handler #ig/ref :telegram.dialogue.core/start
+                     :roles [:anonymous]}
+             :upload {:next :video-name
+                      :handler #ig/ref :telegram.dialogue.files/upload}
+             :read {:roles [:user :admin]
+                    :handler #ig/ref :telegram.dialogue.files/read}
+             :page {:roles [:user :admin]
+                    :handler #ig/ref :telegram.dialogue.keyboard/page}}
 
-            :on-callback
-            {:do #ig/ref :telegram.dialogue.keyboard/handle-callback-query
-             :next :default}
+            :video-name
+            {:text
+             {:next :video-file
+              :handler #ig/ref :telegram.dialogue.files/video-name}}
 
-            :on-text
-            {:do #ig/ref :telegram.dialogue.keyboard/main-keyboard}
-            :next :default}
+            :video-file
+            {:file
+             {:handler #ig/ref :telegram.dialogue.files/video-file}}}}}
 
-           :awaiting-video-name
-           {:on-text
-            {:next :awaiting-video-file
-             :do #ig/ref :telegram.dialogue.handler/awaiting-video-name-on-text}}
+         :telegram.dialogue.core/user-id->role {:select-user #ig/ref :db.model/select-user
+                                                :admin-chat-ids #custom/env-to-set "TELEGRAM_ADMIN_IDS"}
+         :telegram.dialogue.core/start {:invite #env "INVITE"
+                                        :insert-user! #ig/ref :db.model/insert-user!
+                                        :new-keyboard #ig/ref :telegram.dialogue.keyboard/new-keyboard}
 
-           :awaiting-video-file
-           {:on-file
-            {:next :default
-             :do #ig/ref :telegram.dialogue.handler/awaiting-video-file-on-file}}}}
+         :telegram.dialogue.temp-data/user-data {}
+         :telegram.dialogue.temp-data/user-id->state  #ig/ref :telegram.dialogue.temp-data/user-data
+         :telegram.dialogue.temp-data/set-user-state! #ig/ref :telegram.dialogue.temp-data/user-data
+         :telegram.dialogue.temp-data/user-id->keyboard-msg-id #ig/ref :telegram.dialogue.temp-data/user-data
+         :telegram.dialogue.temp-data/set-user-keyboard-msg-id! #ig/ref :telegram.dialogue.temp-data/user-data
+         :telegram.dialogue.temp-data/user-id->clear-keyboard-msg-id! #ig/ref :telegram.dialogue.temp-data/user-data
+         :telegram.dialogue.temp-data/user-id->video-msg-id #ig/ref :telegram.dialogue.temp-data/user-data
+         :telegram.dialogue.temp-data/set-user-video-msg-id! #ig/ref :telegram.dialogue.temp-data/user-data
+         :telegram.dialogue.temp-data/user-id->clear-video-msg-id! #ig/ref :telegram.dialogue.temp-data/user-data
+         :telegram.dialogue.temp-data/user-id->page #ig/ref :telegram.dialogue.temp-data/user-data
+         :telegram.dialogue.temp-data/user-id+page->update-page! #ig/ref :telegram.dialogue.temp-data/user-data
+         :telegram.dialogue.temp-data/user-id->video-name #ig/ref :telegram.dialogue.temp-data/user-data
+         :telegram.dialogue.temp-data/set-user-video-name! #ig/ref :telegram.dialogue.temp-data/user-data
+         :telegram.dialogue.temp-data/user-id->clear-video-name! #ig/ref :telegram.dialogue.temp-data/user-data
 
-         :telegram.dialogue.user/check-invite {:invite #env "INVITE"}
+         :telegram.dialogue.keyboard/check-delete-clear-msg-id #ig/ref :telegram.core/bot
+         :telegram.dialogue.keyboard/user-id->delete-keyboard-msg-id
+         {:user-id->clear-keyboard-msg-id! #ig/ref :telegram.dialogue.temp-data/user-id->clear-keyboard-msg-id!
+          :user-id->keyboard-msg-id #ig/ref :telegram.dialogue.temp-data/user-id->keyboard-msg-id
+          :check-delete-clear-msg-id #ig/ref :telegram.dialogue.keyboard/check-delete-clear-msg-id}
 
-         :telegram.dialogue.handler/default-upload {}
-
-         :telegram.dialogue.handler/default-read
-         {:select-file #ig/ref :db.model/select-file
-          :download-file #ig/ref :storage/download-file
-          :bot #ig/ref :telegram.core/bot}
-
-         :telegram.dialogue.handler/default-on-text {}
-
-         :telegram.dialogue.handler/awaiting-video-name-on-text
-         {:user-states #ig/ref :telegram.dialogue.user/states}
-
-         :telegram.dialogue.handler/awaiting-video-file-on-file
-         {:user-states #ig/ref :telegram.dialogue.user/states
-          :upload-file! #ig/ref :storage/upload-file!
-          :insert-file! #ig/ref :db.model/insert-file!
-          :download-file #ig/ref :telegram.core/download-file}
-
-         :telegram.dialogue.user/check
-         {:select-user #ig/ref :db.model/select-user
-          :insert-user! #ig/ref :db.model/insert-user!
-          :check-invite #ig/ref :telegram.dialogue.user/check-invite}
-
-         :telegram.dialogue.core/process-msg
-         {:send-message #ig/ref :telegram.core/send-message
-          :dispatch #ig/ref :telegram.dialogue.core/dispatch
-          :admin? #ig/ref :telegram.dialogue.user/admin?
-          :check-user #ig/ref :telegram.dialogue.user/check}
+         :telegram.dialogue.keyboard/user-id->delete-video-msg-id
+         {:user-id->clear-video-msg-id! #ig/ref :telegram.dialogue.temp-data/user-id->clear-video-msg-id!
+          :user-id->video-msg-id #ig/ref :telegram.dialogue.temp-data/user-id->video-msg-id
+          :check-delete-clear-msg-id #ig/ref :telegram.dialogue.keyboard/check-delete-clear-msg-id}
 
          :telegram.dialogue.keyboard/main-keyboard
-         {:list-files #ig/ref :db.model/list-files
-          :user-states #ig/ref :telegram.dialogue.user/states
-          :total-pages #ig/ref :db.model/file-total-pages}
-
-         :telegram.dialogue.keyboard/handle-callback-query
-         {:list-files #ig/ref :db.model/list-files
-          :user-states #ig/ref :telegram.dialogue.user/states
+         {:send-message! #ig/ref :telegram.core/send-message!
+          :list-files #ig/ref :db.model/list-files
           :total-pages #ig/ref :db.model/file-total-pages
-          :bot #ig/ref :telegram.core/bot
-          :select-file #ig/ref :db.model/select-file}
+          :user-id->page #ig/ref :telegram.dialogue.temp-data/user-id->page
+          :user-id->delete-keyboard-msg-id #ig/ref :telegram.dialogue.keyboard/user-id->delete-keyboard-msg-id
+          :set-user-keyboard-msg-id! #ig/ref :telegram.dialogue.temp-data/set-user-keyboard-msg-id!}
+
+         :telegram.dialogue.keyboard/new-keyboard
+         {:user-id->delete-video-msg-id #ig/ref :telegram.dialogue.keyboard/user-id->delete-video-msg-id
+          :main-keyboard #ig/ref :telegram.dialogue.keyboard/main-keyboard}
+
+         :telegram.dialogue.keyboard/page
+         {:bot #ig/ref :telegram.core/bot
+          :user-id->keyboard-msg-id #ig/ref :telegram.dialogue.temp-data/user-id->keyboard-msg-id
+          :total-pages #ig/ref :db.model/file-total-pages
+          :user-id+page->update-page! #ig/ref :telegram.dialogue.temp-data/user-id+page->update-page!}
+
+         :telegram.dialogue.files/read
+         {:bot #ig/ref :telegram.core/bot
+          :main-keyboard #ig/ref :telegram.dialogue.keyboard/main-keyboard
+          :select-file #ig/ref :db.model/select-file
+          :download-file #ig/ref :storage/download-file
+          :user-id->clear-video-msg-id! #ig/ref :telegram.dialogue.temp-data/user-id->clear-video-msg-id!
+          :set-user-video-msg-id! #ig/ref :telegram.dialogue.temp-data/set-user-video-msg-id!}
+         :telegram.dialogue.files/upload #ig/ref :telegram.core/send-message!
+         :telegram.dialogue.files/video-name {:send-message! #ig/ref :telegram.core/send-message!
+                                              :set-user-video-name! #ig/ref :telegram.dialogue.temp-data/set-user-video-name!}
+         :telegram.dialogue.files/video-file
+         {:send-message! #ig/ref :telegram.core/send-message!
+          :upload-file! #ig/ref :storage/upload-file!
+          :insert-file! #ig/ref :db.model/insert-file!
+          :download-file #ig/ref :telegram.core/download-file
+          :user-id->video-name #ig/ref :telegram.dialogue.temp-data/user-id->video-name
+          :user-id->clear-video-name! #ig/ref :telegram.dialogue.temp-data/user-id->clear-video-name!
+          :new-keyboard #ig/ref :telegram.dialogue.keyboard/new-keyboard}
 
          :storage/client
          {:host        #env "S3_API_HOST"
@@ -109,10 +131,10 @@
           :secret-key  #env "MINIO_PASSWORD"
           :bucket-name #env "MINIO_BUCKET"}
 
-         :storage/upload-file!  {:client #ig/ref :storage/client}
-         :storage/download-file {:client #ig/ref :storage/client}
-         :storage/delete-file!  {:client #ig/ref :storage/client}
-         :storage/file-exists?  {:client #ig/ref :storage/client}
+         :storage/upload-file!  #ig/ref :storage/client
+         :storage/download-file #ig/ref :storage/client
+         :storage/delete-file!  #ig/ref :storage/client
+         :storage/file-exists?  #ig/ref :storage/client
 
          :db.core/execute!
          {:ds #ig/ref #profile {:default :db.core/ds

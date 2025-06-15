@@ -12,6 +12,7 @@
                                          user-id->clear-video-msg-id!
                                          set-user-video-message-id!]}]
   (fn [upd]
+    (log/info "in :read")
     (let [user-id (-> upd :user :id)
           file-id (-> upd :val :args first)
           main-keyboard (partial main-keyboard upd)]
@@ -44,6 +45,7 @@
 
 (defmethod ig/init-key ::upload [_ send-message!]
   (fn [upd]
+    (log/info "in :upload")
     (-> upd
         :user
         :id
@@ -51,6 +53,7 @@
 
 (defmethod ig/init-key ::video-name [_ {:keys [send-message!
                                                set-user-video-name!]}]
+  (log/info "in :video-name")
   (fn [upd]
     (let [user-id (-> upd :user :id)]
       (->> upd
@@ -58,7 +61,7 @@
            (set-user-video-name! user-id))
       (send-message! user-id "Теперь отправьте само видео или кружок, можно пересланное."))))
 
-(defmethod ig/init-key ::awaiting-video-file-on-file
+(defmethod ig/init-key ::video-file
   [_ {:keys [send-message!
              upload-file!
              insert-file!
@@ -67,6 +70,7 @@
              user-id->clear-video-name!
              new-keyboard]}]
   (fn [upd]
+    (log/info "in :video-file")
     (let [user-id (-> upd :user :id)
           file (:val upd)
           file-id (:file_id file)
@@ -98,4 +102,3 @@
                                             "Рекомендуется дополнительно сохранить его вручную.")))))))
         (answer "Ожидалось видео или кружок."))
       (new-keyboard upd))))
-

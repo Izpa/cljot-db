@@ -1,7 +1,8 @@
 (ns telegram.dialogue.core
   (:require
    [integrant.core :as ig]
-   [taoensso.timbre :as log]))
+   [taoensso.timbre :as log]
+   [utils :refer [pformat]]))
 
 (defmethod ig/init-key ::user-id->role [_ {:keys [admin-chat-ids select-user]}]
   (fn [user-id]
@@ -21,25 +22,32 @@
                                         user-id->state
                                         set-user-state!
                                         config
-                                        send-message!]}]
+                                        send-message!
+                                        default-state]}]
   (fn [upd]
+    (log/info "Normalized UPD: " (pformat upd))
     (let [user-id (-> upd :user :id)
           role (user-id->role user-id)
           upd-type (:type upd)
           state-name (user-id->state user-id)
-          state (get-in [state-name upd-type] config)
+          state (or (get-in config [state-name upd-type])
+                    (get-in config [state-name :default] config))
           {:keys [handler
                   next
-                  roles]} (if (= :command upd-type)
-                            (->> upd :val :command (get state))
-                            state)]
-      (log/info "State: " state-name "; Next: " next "; Roles: " roles)
-      (if (some #{role} roles)
+                  roles]} (or (if (= :command upd-type)
+                                (->> upd :val :command (get state))
+                                state)
+                              default-state)]
+      (log/info "State: " state-name
+                "(found?: " (nil? state)
+                "); Next: " next
+                "; Roles: " roles)
+      (if (or (some #{role} roles)
+              (= role :admin))
         (do
           (handler (assoc-in upd [:user :role] role))
-          (set-user-state! next))
+          (set-user-state! user-id (or next :default)))
         (send-message! user-id
                        (case role
-                         :admin "Неверно настроены права доступа для данного действия"
                          :user  "Данное действие доступно только администраторам"
                          :anonymous "Это приватный бот, доступ только по инвайтам"))))))

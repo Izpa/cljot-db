@@ -36,42 +36,42 @@
 (defmethod ig/halt-key! ::client [_ {:keys [client]}]
   (.close client))
 
-(defmethod ig/init-key ::upload-file! [_ {{:keys [client bucket-name]} :client}]
-    (log/info "upload-file: client=" client " bucket-name=" bucket-name)
-    (fn [key ^InputStream input-stream]
-      (let [bytes (.readAllBytes input-stream)
-            req (-> (PutObjectRequest/builder)
+(defmethod ig/init-key ::upload-file! [_ {:keys [client bucket-name]}]
+  (log/info "upload-file: client=" client " bucket-name=" bucket-name)
+  (fn [key ^InputStream input-stream]
+    (let [bytes (.readAllBytes input-stream)
+          req (-> (PutObjectRequest/builder)
+                  (.bucket bucket-name)
+                  (.key key)
+                  .build)]
+      (.putObject client req (RequestBody/fromBytes bytes)))))
+
+(defmethod ig/init-key ::download-file [_ {:keys [client bucket-name]}]
+  (log/info "download-file: client=" client " bucket-name=" bucket-name)
+  (fn [key]
+    (let [req (-> (GetObjectRequest/builder)
+                  (.bucket bucket-name)
+                  (.key key)
+                  .build)]
+      (.getObject client req (ResponseTransformer/toInputStream)))))
+
+(defmethod ig/init-key ::delete-file! [_ {:keys [client bucket-name]}]
+  (log/info "delete-file: client=" client " bucket-name=" bucket-name)
+  (fn [key]
+    (let [req (-> (DeleteObjectRequest/builder)
+                  (.bucket bucket-name)
+                  (.key key)
+                  .build)]
+      (.deleteObject client req))))
+
+(defmethod ig/init-key ::file-exists? [_ {:keys [client bucket-name]}]
+  (log/info "download-file: client=" client " bucket-name=" bucket-name)
+  (fn [key]
+    (try
+      (let [req (-> (HeadObjectRequest/builder)
                     (.bucket bucket-name)
                     (.key key)
                     .build)]
-        (.putObject client req (RequestBody/fromBytes bytes)))))
-
-(defmethod ig/init-key ::download-file [_ {{:keys [client bucket-name]} :client}]
-    (log/info "download-file: client=" client " bucket-name=" bucket-name)
-    (fn [key]
-      (let [req (-> (GetObjectRequest/builder)
-                    (.bucket bucket-name)
-                    (.key key)
-                    .build)]
-        (.getObject client req (ResponseTransformer/toInputStream)))))
-
-(defmethod ig/init-key ::delete-file! [_ {{:keys [client bucket-name]} :client}]
-    (log/info "delete-file: client=" client " bucket-name=" bucket-name)
-    (fn [key]
-      (let [req (-> (DeleteObjectRequest/builder)
-                    (.bucket bucket-name)
-                    (.key key)
-                    .build)]
-        (.deleteObject client req))))
-
-(defmethod ig/init-key ::file-exists? [_ {{:keys [client bucket-name]} :client}]
-    (log/info "download-file: client=" client " bucket-name=" bucket-name)
-    (fn [key]
-      (try
-        (let [req (-> (HeadObjectRequest/builder)
-                      (.bucket bucket-name)
-                      (.key key)
-                      .build)]
-          (.headObject client req)
-          true)
-        (catch Exception _ false))))
+        (.headObject client req)
+        true)
+      (catch Exception _ false))))
