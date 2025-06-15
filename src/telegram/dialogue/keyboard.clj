@@ -7,7 +7,7 @@
 
 (defn make-file-row [files]
   (mapv (fn [{:keys [id name]}]
-          [{:text name :callback_data (str "file:" id)}])
+          [{:text name :callback_data (str "/read " id)}])
         files))
 
 (defn make-pagination-row [page total-pages]
@@ -26,16 +26,17 @@
   (fn [user-id->msg-id user-id->clear-msg-id]
     (fn [user-id]
       (let [msg-id (user-id->msg-id user-id)]
+        (log/info "Delete message. user-id: " user-id "; msg-id: " msg-id)
         (when msg-id
-          (tbot/delete-message bot user-id msg-id)
+          (log/info "delete message: " (tbot/delete-message bot user-id msg-id))
           (user-id->clear-msg-id user-id))))))
 
-(defmethod ig/init-key ::user-id->delete-keyboard-msg-id [_ {:keys [user-id->clear-keyboard-msg-id!
+(defmethod ig/init-key ::user-id->delete-keyboard-msg-id! [_ {:keys [user-id->clear-keyboard-msg-id!
                                                                     user-id->keyboard-msg-id
                                                                     check-delete-clear-msg-id]}]
   (check-delete-clear-msg-id user-id->keyboard-msg-id user-id->clear-keyboard-msg-id!))
 
-(defmethod ig/init-key ::user-id->delete-video-msg-id [_ {:keys [user-id->clear-video-msg-id!
+(defmethod ig/init-key ::user-id->delete-video-msg-id! [_ {:keys [user-id->clear-video-msg-id!
                                                                  user-id->video-msg-id
                                                                  check-delete-clear-msg-id]}]
   (check-delete-clear-msg-id user-id->video-msg-id user-id->clear-video-msg-id!))
@@ -45,7 +46,7 @@
              list-files
              total-pages
              user-id->page
-             user-id->delete-keyboard-msg-id
+             user-id->delete-keyboard-msg-id!
              set-user-keyboard-msg-id!]}]
   (fn main-keyboard
     ([upd] (main-keyboard upd "Bыберите видео:"))
@@ -54,7 +55,7 @@
      (let [user-id  (-> upd :user :id)
            pages (total-pages)
            page (min pages (user-id->page user-id))]
-       (user-id->delete-keyboard-msg-id user-id)
+       (user-id->delete-keyboard-msg-id! user-id)
        (->> pages
             (make-keyboard (list-files page) page)
             (assoc {} :reply_markup)
@@ -63,10 +64,10 @@
             :message_id
             (set-user-keyboard-msg-id! user-id))))))
 
-(defmethod ig/init-key ::new-keyboard [_ {:keys [user-id->delete-video-msg-id main-keyboard]}]
+(defmethod ig/init-key ::new-keyboard [_ {:keys [user-id->delete-video-msg-id! main-keyboard]}]
   (fn [upd]
     (log/info "in :new-keyboard")
-    (-> upd :user :id user-id->delete-video-msg-id)
+    (-> upd :user :id user-id->delete-video-msg-id!)
     (main-keyboard upd)))
 
 (defmethod ig/init-key ::page [_ {:keys [bot

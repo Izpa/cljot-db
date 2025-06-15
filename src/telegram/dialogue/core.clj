@@ -31,7 +31,7 @@
           upd-type (:type upd)
           state-name (user-id->state user-id)
           state (or (get-in config [state-name upd-type])
-                    (get-in config [state-name :default] config))
+                    (get-in config [state-name :default]))
           {:keys [handler
                   next
                   roles]} (or (if (= :command upd-type)
@@ -39,7 +39,7 @@
                                 state)
                               default-state)]
       (log/info "State: " state-name
-                "(found?: " (nil? state)
+                "(nil?: " (nil? state)
                 "); Next: " next
                 "; Roles: " roles)
       (if (or (some #{role} roles)

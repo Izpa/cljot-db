@@ -34,7 +34,7 @@
           :send-message! #ig/ref :telegram.core/send-message!
           :default-state {:handler #ig/ref :telegram.dialogue.keyboard/new-keyboard
                           :roles [:user :admin]}
-          :cofig
+          :config
           {:default
            {:command
             {:start {:handler #ig/ref :telegram.dialogue.core/start
@@ -77,12 +77,12 @@
          :telegram.dialogue.temp-data/user-id->clear-video-name! #ig/ref :telegram.dialogue.temp-data/user-data
 
          :telegram.dialogue.keyboard/check-delete-clear-msg-id #ig/ref :telegram.core/bot
-         :telegram.dialogue.keyboard/user-id->delete-keyboard-msg-id
+         :telegram.dialogue.keyboard/user-id->delete-keyboard-msg-id!
          {:user-id->clear-keyboard-msg-id! #ig/ref :telegram.dialogue.temp-data/user-id->clear-keyboard-msg-id!
           :user-id->keyboard-msg-id #ig/ref :telegram.dialogue.temp-data/user-id->keyboard-msg-id
           :check-delete-clear-msg-id #ig/ref :telegram.dialogue.keyboard/check-delete-clear-msg-id}
 
-         :telegram.dialogue.keyboard/user-id->delete-video-msg-id
+         :telegram.dialogue.keyboard/user-id->delete-video-msg-id!
          {:user-id->clear-video-msg-id! #ig/ref :telegram.dialogue.temp-data/user-id->clear-video-msg-id!
           :user-id->video-msg-id #ig/ref :telegram.dialogue.temp-data/user-id->video-msg-id
           :check-delete-clear-msg-id #ig/ref :telegram.dialogue.keyboard/check-delete-clear-msg-id}
@@ -92,17 +92,18 @@
           :list-files #ig/ref :db.model/list-files
           :total-pages #ig/ref :db.model/file-total-pages
           :user-id->page #ig/ref :telegram.dialogue.temp-data/user-id->page
-          :user-id->delete-keyboard-msg-id #ig/ref :telegram.dialogue.keyboard/user-id->delete-keyboard-msg-id
+          :user-id->delete-keyboard-msg-id! #ig/ref :telegram.dialogue.keyboard/user-id->delete-keyboard-msg-id!
           :set-user-keyboard-msg-id! #ig/ref :telegram.dialogue.temp-data/set-user-keyboard-msg-id!}
 
          :telegram.dialogue.keyboard/new-keyboard
-         {:user-id->delete-video-msg-id #ig/ref :telegram.dialogue.keyboard/user-id->delete-video-msg-id
+         {:user-id->delete-video-msg-id! #ig/ref :telegram.dialogue.keyboard/user-id->delete-video-msg-id!
           :main-keyboard #ig/ref :telegram.dialogue.keyboard/main-keyboard}
 
          :telegram.dialogue.keyboard/page
          {:bot #ig/ref :telegram.core/bot
           :user-id->keyboard-msg-id #ig/ref :telegram.dialogue.temp-data/user-id->keyboard-msg-id
           :total-pages #ig/ref :db.model/file-total-pages
+          :list-files #ig/ref :db.model/list-files
           :user-id+page->update-page! #ig/ref :telegram.dialogue.temp-data/user-id+page->update-page!}
 
          :telegram.dialogue.files/read
@@ -110,7 +111,7 @@
           :main-keyboard #ig/ref :telegram.dialogue.keyboard/main-keyboard
           :select-file #ig/ref :db.model/select-file
           :download-file #ig/ref :storage/download-file
-          :user-id->clear-video-msg-id! #ig/ref :telegram.dialogue.temp-data/user-id->clear-video-msg-id!
+          :user-id->delete-video-msg-id! #ig/ref :telegram.dialogue.keyboard/user-id->delete-video-msg-id!
           :set-user-video-msg-id! #ig/ref :telegram.dialogue.temp-data/set-user-video-msg-id!}
          :telegram.dialogue.files/upload #ig/ref :telegram.core/send-message!
          :telegram.dialogue.files/video-name {:send-message! #ig/ref :telegram.core/send-message!

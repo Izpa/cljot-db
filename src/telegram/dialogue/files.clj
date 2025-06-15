@@ -9,14 +9,14 @@
                                          main-keyboard
                                          select-file
                                          download-file
-                                         user-id->clear-video-msg-id!
-                                         set-user-video-message-id!]}]
+                                         user-id->delete-video-msg-id!
+                                         set-user-video-msg-id!]}]
   (fn [upd]
     (log/info "in :read")
     (let [user-id (-> upd :user :id)
           file-id (-> upd :val :args first)
           main-keyboard (partial main-keyboard upd)]
-      (user-id->clear-video-msg-id! user-id)
+      (user-id->delete-video-msg-id! user-id)
       (if-not file-id
         (main-keyboard "Ошибка при загрузке файла (не указан file-id), попробуйте другое видео")
         (try
@@ -34,10 +34,10 @@
                       (if is-circle
                         (tbot/send-video-note bot user-id file)
                         (tbot/send-video bot user-id file {:caption name})))))]
-            (-> msg
-                :result
-                :message_id
-                set-user-video-message-id!)
+            (->> msg
+                 :result
+                 :message_id
+                 (set-user-video-msg-id! user-id))
             (main-keyboard))
           (catch Exception e
             (log/warn e "Файл не найден или не доступен")
