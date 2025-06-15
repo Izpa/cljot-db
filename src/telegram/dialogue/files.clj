@@ -3,7 +3,9 @@
    [integrant.core :as ig]
    [taoensso.timbre :as log]
    [telegrambot-lib.core :as tbot])
-  (:import (java.util UUID)))
+  (:import
+   (java.util
+    UUID)))
 
 (defmethod ig/init-key ::read [_ {:keys [bot
                                          main-keyboard

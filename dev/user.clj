@@ -37,13 +37,16 @@
   (stop-watch!)
   (igr/halt))
 
-(defn db []
+(defn db
+  []
   (:db/ds (load-config)))
 
-(defn rollback-db-migrations []
+(defn rollback-db-migrations
+  []
   (migratus/rollback (db)))
 
-(defn create-migration [migration-name]
+(defn create-migration
+  [migration-name]
   (migratus/create (db) migration-name))
 
 (comment

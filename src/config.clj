@@ -27,7 +27,8 @@
 (defmethod aero/reader 'int [_ _ value]
   (Integer/parseInt value))
 
-(defn read-config [profile]
+(defn read-config
+  [profile]
   (aero/read-config (clojure.java.io/resource "config.edn")
                     {:profile profile}))
 
