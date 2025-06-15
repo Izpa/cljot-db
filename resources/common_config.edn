@@ -44,16 +44,16 @@
              :read {:roles [:user :admin]
                     :handler #ig/ref :telegram.dialogue.files/read}
              :page {:roles [:user :admin]
-                    :handler #ig/ref :telegram.dialogue.keyboard/page}}
+                    :handler #ig/ref :telegram.dialogue.keyboard/page}}}
 
-            :video-name
-            {:text
-             {:next :video-file
-              :handler #ig/ref :telegram.dialogue.files/video-name}}
+           :video-name
+           {:text
+            {:next :video-file
+             :handler #ig/ref :telegram.dialogue.files/video-name}}
 
-            :video-file
-            {:file
-             {:handler #ig/ref :telegram.dialogue.files/video-file}}}}}
+           :video-file
+           {:file
+            {:handler #ig/ref :telegram.dialogue.files/video-file}}}}
 
          :telegram.dialogue.core/user-id->role {:select-user #ig/ref :db.model/select-user
                                                 :admin-chat-ids #custom/env-to-set "TELEGRAM_ADMIN_IDS"}
@@ -112,6 +112,7 @@
           :select-file #ig/ref :db.model/select-file
           :download-file #ig/ref :storage/download-file
           :user-id->delete-video-msg-id! #ig/ref :telegram.dialogue.keyboard/user-id->delete-video-msg-id!
+          :user-id->delete-keyboard-msg-id! #ig/ref :telegram.dialogue.keyboard/user-id->delete-keyboard-msg-id!
           :set-user-video-msg-id! #ig/ref :telegram.dialogue.temp-data/set-user-video-msg-id!}
          :telegram.dialogue.files/upload #ig/ref :telegram.core/send-message!
          :telegram.dialogue.files/video-name {:send-message! #ig/ref :telegram.core/send-message!

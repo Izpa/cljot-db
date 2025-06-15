@@ -18,9 +18,11 @@
     :else [[{:text "◀" :callback_data (str "/page " (dec page))}
             {:text "▶" :callback_data (str "/page " (inc page))}]]))
 
-(defn make-keyboard [files page total-pages]
+(defn make-keyboard [add-files-actions? files page total-pages]
   {:inline_keyboard (vec (concat (make-file-row files)
-                                 (make-pagination-row page total-pages)))})
+                                 (make-pagination-row page total-pages)
+                                 (when add-files-actions?
+                                   [[{:text "+" :callback_data "/upload"}]])))})
 
 (defmethod ig/init-key ::check-delete-clear-msg-id [_ bot]
   (fn [user-id->msg-id user-id->clear-msg-id]
@@ -57,7 +59,7 @@
            page (min pages (user-id->page user-id))]
        (user-id->delete-keyboard-msg-id! user-id)
        (->> pages
-            (make-keyboard (list-files page) page)
+            (make-keyboard (= :admin (get-in upd [:user :role])) (list-files page) page)
             (assoc {} :reply_markup)
             (send-message! user-id msg)
             :result
@@ -82,6 +84,6 @@
           files    (list-files page)
           pages    (total-pages)
           msg-id   (user-id->keyboard-msg-id user-id)
-          keyboard (make-keyboard files page pages)]
+          keyboard (make-keyboard (= :admin (get-in upd [:user :role])) files page pages)]
       (tbot/edit-message-reply-markup bot user-id msg-id keyboard)
       (user-id+page->update-page! user-id page))))

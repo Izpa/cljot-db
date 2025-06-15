@@ -9,6 +9,7 @@
                                          main-keyboard
                                          select-file
                                          download-file
+                                         user-id->delete-keyboard-msg-id!
                                          user-id->delete-video-msg-id!
                                          set-user-video-msg-id!]}]
   (fn [upd]
@@ -17,6 +18,7 @@
           file-id (-> upd :val :args first)
           main-keyboard (partial main-keyboard upd)]
       (user-id->delete-video-msg-id! user-id)
+      (user-id->delete-keyboard-msg-id! user-id)
       (if-not file-id
         (main-keyboard "Ошибка при загрузке файла (не указан file-id), попробуйте другое видео")
         (try
@@ -99,6 +101,6 @@
                                (log/info "Saving to DB with: " base)
                                (insert-file! base)
                                (answer (str "Файл слишком большой, его сохранность не гарантируется. "
-                                            "Рекомендуется дополнительно сохранить его вручную.")))))))
-        (answer "Ожидалось видео или кружок."))
-      (new-keyboard upd))))
+                                            "Рекомендуется дополнительно сохранить его вручную."))))
+                           (new-keyboard upd))))
+        (answer "Ожидалось видео или кружок.")))))
