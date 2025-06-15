@@ -6,13 +6,13 @@
    [taoensso.timbre :as log]
    [utils :refer [->num pformat]]))
 
-(defmethod ig/init-key ::handler [_ msg-handler]
+(defmethod ig/init-key ::handler [_ upd-handler]
   #(try
      (when-let [body (:body %)]
        (-> body
            slurp
            (json/parse-string true)
-           msg-handler))
+           upd-handler))
      {:status  200
       :headers {"Content-Type" "text/html"}}
      (catch Exception e

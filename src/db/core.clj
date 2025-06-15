@@ -1,4 +1,4 @@
-(ns db
+(ns db.core
   (:require
    [honey.sql :as sql]
    [integrant.core :as ig]

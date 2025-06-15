@@ -24,6 +24,13 @@
 (defmethod aero/reader 'ig/refset [_ _ value]
   (ig/refset value))
 
+(defmethod aero/reader 'int [_ _ value]
+  (Integer/parseInt value))
+
+(defn read-config [profile]
+  (aero/read-config (clojure.java.io/resource "config.edn")
+                    {:profile profile}))
+
 (defn load-config
   ([] (load-config (or (keyword (System/getProperty "Profile"))
                        :default)))

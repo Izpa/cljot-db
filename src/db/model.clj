@@ -1,0 +1,59 @@
+(ns db.model
+  (:require
+   [integrant.core :as ig])
+  (:import (java.util UUID)))
+
+(defmethod ig/init-key ::page-size [_ page-size]
+  page-size)
+
+(defmethod ig/init-key ::select-user [_ {:keys [execute!]}]
+  (fn [user-id]
+    (execute! {:select :*
+               :from :tg-user
+               :where [:= :id user-id]}
+              true)))
+
+(defmethod ig/init-key ::insert-user! [_ {:keys [execute!]}]
+  (fn [chat]
+    (execute! {:insert-into :tg-user
+               :values [(select-keys chat
+                                     [:id
+                                      :username
+                                      :last_name
+                                      :first_name])]}
+              true)))
+
+(defmethod ig/init-key ::insert-file! [_ {:keys [execute!]}]
+  (fn [values]
+    (execute! {:insert-into :file
+               :values [values]}
+              true)))
+
+(defmethod ig/init-key ::delete-file! [_ {:keys [execute!]}]
+  (fn [file-id]
+    (execute! {:delete-from :file
+               :where [:= :id file-id]}
+              true)))
+
+(defmethod ig/init-key ::select-file [_ {:keys [execute!]}]
+  (fn [file-id]
+    (execute! {:select :*
+               :from :file
+               :where [:= :id (UUID/fromString file-id)]}
+              true)))
+
+(defmethod ig/init-key ::list-files [_ {:keys [execute! page-size]}]
+  (fn [page]
+    (let [offset (* (dec page) page-size)]
+      (execute! {:select [:id :name]
+                 :from :file
+                 :limit page-size
+                 :offset offset}))))
+
+(defmethod ig/init-key ::file-total-pages [_ {:keys [execute! page-size]}]
+  (fn []
+    (let [total (-> (execute! {:select [[[:count :*] :cnt]]
+                               :from :file}
+                              true)
+                    :cnt)]
+      (int (Math/ceil (/ total page-size))))))
