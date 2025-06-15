@@ -1,16 +1,17 @@
 (ns telegram.dialogue.keyboard
   (:require
    [integrant.core :as ig]
-   [telegrambot-lib.core :as tbot]
    [taoensso.timbre :as log]
-   [clojure.string :as str]))
+   [telegrambot-lib.core :as tbot]))
 
-(defn make-file-row [files]
+(defn make-file-row
+  [files]
   (mapv (fn [{:keys [id name]}]
           [{:text name :callback_data (str "/read " id)}])
         files))
 
-(defn make-pagination-row [page total-pages]
+(defn make-pagination-row
+  [page total-pages]
   (cond
     (and (= page 1) (= total-pages 1)) []
     (= page 1) [[{:text "▶" :callback_data (str "/page " (inc page))}]]
@@ -18,7 +19,8 @@
     :else [[{:text "◀" :callback_data (str "/page " (dec page))}
             {:text "▶" :callback_data (str "/page " (inc page))}]]))
 
-(defn make-keyboard [add-files-actions? files page total-pages]
+(defn make-keyboard
+  [add-files-actions? files page total-pages]
   {:inline_keyboard (vec (concat (make-file-row files)
                                  (make-pagination-row page total-pages)
                                  (when add-files-actions?
@@ -34,13 +36,13 @@
           (user-id->clear-msg-id user-id))))))
 
 (defmethod ig/init-key ::user-id->delete-keyboard-msg-id! [_ {:keys [user-id->clear-keyboard-msg-id!
-                                                                    user-id->keyboard-msg-id
-                                                                    check-delete-clear-msg-id]}]
+                                                                     user-id->keyboard-msg-id
+                                                                     check-delete-clear-msg-id]}]
   (check-delete-clear-msg-id user-id->keyboard-msg-id user-id->clear-keyboard-msg-id!))
 
 (defmethod ig/init-key ::user-id->delete-video-msg-id! [_ {:keys [user-id->clear-video-msg-id!
-                                                                 user-id->video-msg-id
-                                                                 check-delete-clear-msg-id]}]
+                                                                  user-id->video-msg-id
+                                                                  check-delete-clear-msg-id]}]
   (check-delete-clear-msg-id user-id->video-msg-id user-id->clear-video-msg-id!))
 
 (defmethod ig/init-key ::main-keyboard

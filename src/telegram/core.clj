@@ -1,11 +1,11 @@
 (ns telegram.core
   (:require
-   [integrant.core :as ig]
-   [telegram.long-polling :refer [long-polling]]
-   [taoensso.timbre :as log]
-   [org.httpkit.client :as http]
-   [telegrambot-lib.core :as tbot]
    [clojure.string :as str]
+   [integrant.core :as ig]
+   [org.httpkit.client :as http]
+   [taoensso.timbre :as log]
+   [telegram.long-polling :refer [long-polling]]
+   [telegrambot-lib.core :as tbot]
    [utils :refer [pformat]]))
 
 (defmethod ig/init-key ::token [_ token]
@@ -18,16 +18,18 @@
   ([val tg-type caption]
    (assoc-in (val+file-tg-type->file-data val tg-type) [:val :caption] caption)))
 
-(defn text->data [text]
+(defn text->data
+  [text]
   (if (str/starts-with? text "/")
-        (let [[cmd & args] (-> text (subs 1) (str/split #"\s+"))]
-          {:type :command
-           :val {:command (keyword cmd)
-                 :args args}})
-        {:type :text
-         :val text}))
+    (let [[cmd & args] (-> text (subs 1) (str/split #"\s+"))]
+      {:type :command
+       :val {:command (keyword cmd)
+             :args args}})
+    {:type :text
+     :val text}))
 
-(defn data->type+val [data]
+(defn data->type+val
+  [data]
   (let [text (or (:data data)
                  (:text data))]
     (cond
@@ -40,7 +42,8 @@
       (:photo data) (val+file-tg-type->file-data (:photo data) :photo)
       :else nil)))
 
-(defn normalize-upd [upd]
+(defn normalize-upd
+  [upd]
   (let [clean-upd (or (:callback_query upd)
                       (:message upd)
                       upd)]

@@ -1,7 +1,9 @@
 (ns db.model
   (:require
    [integrant.core :as ig])
-  (:import (java.util UUID)))
+  (:import
+   (java.util
+    UUID)))
 
 (defmethod ig/init-key ::page-size [_ page-size]
   page-size)
@@ -52,8 +54,11 @@
 
 (defmethod ig/init-key ::file-total-pages [_ {:keys [execute! page-size]}]
   (fn []
-    (let [total (-> (execute! {:select [[[:count :*] :cnt]]
-                               :from :file}
-                              true)
-                    :cnt)]
-      (int (Math/ceil (/ total page-size))))))
+    (-> {:select [[[:count :*] :cnt]]
+         :from :file}
+        (execute! true)
+        :cnt
+        (/ page-size)
+        Math/ceil
+        int
+        (max 1))))
