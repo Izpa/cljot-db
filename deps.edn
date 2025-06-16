@@ -66,7 +66,7 @@
   {:extra-paths ["test/integration"]}
 
   :build
-  {:extra-deps {io.github.clojure/tools.build {:mvn/version "0.9.6"}}
+  {:extra-deps {io.github.clojure/tools.build {:mvn/version "0.10.9"}}
    :ns-default build}
   
   :dev
