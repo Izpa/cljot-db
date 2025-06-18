@@ -22,6 +22,7 @@
          :db.model/insert-file! {:execute! #ig/ref :db.core/execute!}
          :db.model/delete-file! {:execute! #ig/ref :db.core/execute!}
          :db.model/select-file  {:execute! #ig/ref :db.core/execute!}
+         :db.model/update-file-name!  {:execute! #ig/ref :db.core/execute!}
          :db.model/list-files   {:execute! #ig/ref :db.core/execute!
                                  :page-size #ig/ref :db.model/page-size}
          :db.model/file-total-pages   {:execute! #ig/ref :db.core/execute!
@@ -41,6 +42,10 @@
                      :roles [:anonymous]}
              :upload {:next :video-name
                       :handler #ig/ref :telegram.dialogue.files/upload}
+             :rename {:next :rename
+                      :handler #ig/ref :telegram.dialogue.files/rename-file}
+             :delete {:next :delete
+                      :handler #ig/ref :telegram.dialogue.files/delete-file}
              :read {:roles [:user :admin]
                     :handler #ig/ref :telegram.dialogue.files/read}
              :page {:roles [:user :admin]
@@ -50,6 +55,10 @@
            {:text
             {:next :video-file
              :handler #ig/ref :telegram.dialogue.files/video-name}}
+
+           :rename {:text {:handler #ig/ref :telegram.dialogue.files/renaming-file}}
+           
+           :delete {:text {:handler #ig/ref :telegram.dialogue.files/deleting-file}}
 
            :video-file
            {:file
@@ -75,6 +84,9 @@
          :telegram.dialogue.temp-data/user-id->video-name #ig/ref :telegram.dialogue.temp-data/user-data
          :telegram.dialogue.temp-data/set-user-video-name! #ig/ref :telegram.dialogue.temp-data/user-data
          :telegram.dialogue.temp-data/user-id->clear-video-name! #ig/ref :telegram.dialogue.temp-data/user-data
+         :telegram.dialogue.temp-data/set-user-rename-file-id! #ig/ref :telegram.dialogue.temp-data/user-data
+         :telegram.dialogue.temp-data/user-id->rename-file-id #ig/ref :telegram.dialogue.temp-data/user-data
+         :telegram.dialogue.temp-data/user-id->clear-rename-file-id! #ig/ref :telegram.dialogue.temp-data/user-data
 
          :telegram.dialogue.keyboard/check-delete-clear-msg-id #ig/ref :telegram.core/bot
          :telegram.dialogue.keyboard/user-id->delete-keyboard-msg-id!
@@ -125,6 +137,22 @@
           :user-id->video-name #ig/ref :telegram.dialogue.temp-data/user-id->video-name
           :user-id->clear-video-name! #ig/ref :telegram.dialogue.temp-data/user-id->clear-video-name!
           :new-keyboard #ig/ref :telegram.dialogue.keyboard/new-keyboard}
+
+         :telegram.dialogue.files/rename-file
+         {:send-message! #ig/ref :telegram.core/send-message!
+          :set-user-rename-file-id! #ig/ref :telegram.dialogue.temp-data/set-user-rename-file-id!}
+
+         :telegram.dialogue.files/renaming-file
+         {:send-message! #ig/ref :telegram.core/send-message!
+          :update-file-name! #ig/ref :db.model/update-file-name!
+          :user-id->rename-file-id #ig/ref :telegram.dialogue.temp-data/user-id->rename-file-id
+          :user-id->clear-rename-file-id! #ig/ref :telegram.dialogue.temp-data/user-id->clear-rename-file-id!}
+
+         :telegram.dialogue.files/delete-file #ig/ref :telegram.core/send-message!
+
+         :telegram.dialogue.files/deleting-file
+         {:send-message! #ig/ref :telegram.core/send-message!
+          :delete-file! #ig/ref :db.model/delete-file!}
 
          :storage/client
          {:host        #env "S3_API_HOST"

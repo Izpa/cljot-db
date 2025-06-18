@@ -106,3 +106,65 @@
                                             "Рекомендуется дополнительно сохранить его вручную."))))
                            (new-keyboard upd))))
         (answer "Ожидалось видео или кружок.")))))
+
+(defmethod ig/init-key ::rename-file [_ {:keys [send-message! set-user-rename-file-id!]}]
+  (fn [upd]
+    (log/info "in :rename-file")
+    (let [user-id (-> upd :user :id)
+          file-id (-> upd :val :args first)]
+      (if file-id
+        (do (set-user-rename-file-id! user-id file-id)
+            (send-message! user-id "Введите новое имя файла:"))
+        (send-message! user-id "Не указан ID файла для переименования.")))))
+
+(defmethod ig/init-key ::renaming-file
+  [_ {:keys [send-message!
+             update-file-name!
+             user-id->rename-file-id
+             user-id->clear-rename-file-id!]}]
+  (fn [upd]
+    (log/info "in :renaming-file")
+    (let [user-id (-> upd :user :id)
+          new-name (-> upd :val :text)
+          file-id (user-id->rename-file-id user-id)]
+      (if (and file-id new-name)
+        (do
+          (update-file-name! file-id new-name)
+          (send-message! user-id "Имя файла обновлено."))
+        (send-message! user-id "Ошибка: не удалось обновить имя файла."))
+      (user-id->clear-rename-file-id! user-id))))
+
+(defmethod ig/init-key ::rename-file [_ {:keys [send-message! set-user-rename-file-id!]}]
+  (fn [upd]
+    (log/info "in :rename-file")
+    (let [user-id (-> upd :user :id)
+          file-id (-> upd :val :args first)]
+      (if file-id
+        (do (set-user-rename-file-id! user-id file-id)
+            (send-message! user-id "Введите новое имя файла:"))
+        (send-message! user-id "Не указан ID файла для переименования.")))))
+
+(defmethod ig/init-key ::delete-file [_ send-message!]
+  (fn [upd]
+    (log/info "in :delete-file")
+    (let [user-id (-> upd :user :id)
+          file-id (-> upd :val :args first)]
+      (if file-id
+        (send-message! user-id
+                       "Вы уверены, что хотите удалить файл?"
+                       {:inline_keyboard [[{:text "Да" :callback_data (str "/deleting " file-id)}
+                                           {:text "Отмена" :callback_data "/start "}]]})
+        (send-message! user-id "Не указан ID файла для удаления.")))))
+
+(defmethod ig/init-key ::deleting-file
+  [_ {:keys [send-message!
+             delete-file!]}]
+  (fn [upd]
+    (log/info "in :deleting-file")
+    (let [user-id (-> upd :user :id)
+          file-id (-> upd :val :args first)]
+      (if file-id
+        (do
+          (delete-file! file-id)
+          (send-message! user-id "Файл удалён"))
+        (send-message! user-id "Ошибка: не удалось обновить имя файла.")))))

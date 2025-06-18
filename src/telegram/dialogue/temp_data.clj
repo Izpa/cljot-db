@@ -70,3 +70,15 @@
 (defmethod ig/init-key ::user-id->clear-video-name! [_ user-data]
   (fn [user-id]
     (swap! user-data update user-id dissoc :video-name)))
+
+(defmethod ig/init-key ::set-user-rename-file-id! [_ user-data]
+  (fn [user-id file-id]
+    (swap! user-data assoc-in [user-id :rename-file-id] file-id)))
+
+(defmethod ig/init-key ::user-id->rename-file-id [_ user-data]
+  (fn [user-id]
+    (get-in @user-data [user-id  :rename-file-id])))
+
+(defmethod ig/init-key ::user-id->clear-rename-file-id! [_ user-data]
+  (fn [user-id]
+    (swap! user-data update user-id dissoc :rename-file-id)))

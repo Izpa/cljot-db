@@ -62,3 +62,10 @@
         Math/ceil
         int
         (max 1))))
+
+(defmethod ig/init-key ::update-file-name! [_ {:keys [execute!]}]
+  (fn [file-id new-name]
+    (execute! {:update :file
+               :set {:name new-name}
+               :where [:= :id (UUID/fromString file-id)]}
+              true)))
