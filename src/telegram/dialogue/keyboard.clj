@@ -4,6 +4,22 @@
    [taoensso.timbre :as log]
    [telegrambot-lib.core :as tbot]))
 
+(defn admin-keyboard [file-id]
+  {:inline_keyboard [[{:text "rename" :callback_data (str "/rename " file-id)}
+                      {:text "delete" :callback_data (str "/delete " file-id)}]]})
+
+(defmethod ig/init-key ::send-admin-keyboard! [_  {:keys [send-message!
+                                                          add-user-tmp-msg-ids!]}]
+  (fn [user-id file-name file-id]
+    (log/info "Send admin keyboard!")
+    (->> file-id
+         admin-keyboard
+         (assoc {} :reply_markup)
+         (send-message! user-id (str "Действия с файлом " file-name))
+         :result
+         :message_id
+         (add-user-tmp-msg-ids! user-id))))
+
 (defn make-file-row
   [files]
   (mapv (fn [{:keys [id name]}]
@@ -26,31 +42,27 @@
                                  (when add-files-actions?
                                    [[{:text "+" :callback_data "/upload"}]])))})
 
-(defmethod ig/init-key ::check-delete-clear-msg-id [_ bot]
-  (fn [user-id->msg-id user-id->clear-msg-id]
-    (fn [user-id]
-      (let [msg-id (user-id->msg-id user-id)]
+(defmethod ig/init-key ::user-id->delete-and-clear-tmp-msg! [_ {:keys [bot user-id->tmp-msg-ids user-id->clear-tmp-msg-ids!]}]
+  (fn [user-id]
+    (when-let [msg-ids (user-id->tmp-msg-ids user-id)]
+      (doseq [msg-id msg-ids]
         (log/info "Delete message. user-id: " user-id "; msg-id: " msg-id)
-        (when msg-id
-          (log/info "delete message: " (tbot/delete-message bot user-id msg-id))
-          (user-id->clear-msg-id user-id))))))
+        (log/info "delete message: " (tbot/delete-message bot user-id msg-id)))
+      (user-id->clear-tmp-msg-ids! user-id))))
 
-(defmethod ig/init-key ::user-id->delete-keyboard-msg-id! [_ {:keys [user-id->clear-keyboard-msg-id!
-                                                                     user-id->keyboard-msg-id
-                                                                     check-delete-clear-msg-id]}]
-  (check-delete-clear-msg-id user-id->keyboard-msg-id user-id->clear-keyboard-msg-id!))
-
-(defmethod ig/init-key ::user-id->delete-video-msg-id! [_ {:keys [user-id->clear-video-msg-id!
-                                                                  user-id->video-msg-id
-                                                                  check-delete-clear-msg-id]}]
-  (check-delete-clear-msg-id user-id->video-msg-id user-id->clear-video-msg-id!))
+(defmethod ig/init-key ::upd->delete-and-clear-tmp-msg! [_ user-id->delete-and-clear-tmp-msg!]
+  (fn [upd]
+    (-> upd
+        :user
+        :id
+        user-id->delete-and-clear-tmp-msg!)))
 
 (defmethod ig/init-key ::main-keyboard
   [_ {:keys [send-message!
              list-files
              total-pages
              user-id->page
-             user-id->delete-keyboard-msg-id!
+             user-id->clear-critical-tmp-data
              set-user-keyboard-msg-id!]}]
   (fn main-keyboard
     ([upd] (main-keyboard upd "Bыберите видео:"))
@@ -59,7 +71,7 @@
      (let [user-id  (-> upd :user :id)
            pages (total-pages)
            page (min pages (user-id->page user-id))]
-       (user-id->delete-keyboard-msg-id! user-id)
+       (user-id->clear-critical-tmp-data user-id)
        (->> pages
             (make-keyboard (= :admin (get-in upd [:user :role])) (list-files page) page)
             (assoc {} :reply_markup)
@@ -67,12 +79,6 @@
             :result
             :message_id
             (set-user-keyboard-msg-id! user-id))))))
-
-(defmethod ig/init-key ::new-keyboard [_ {:keys [user-id->delete-video-msg-id! main-keyboard]}]
-  (fn [upd]
-    (log/info "in :new-keyboard")
-    (-> upd :user :id user-id->delete-video-msg-id!)
-    (main-keyboard upd)))
 
 (defmethod ig/init-key ::page [_ {:keys [bot
                                          user-id->keyboard-msg-id

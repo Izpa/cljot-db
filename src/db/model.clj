@@ -34,7 +34,7 @@
 (defmethod ig/init-key ::delete-file! [_ {:keys [execute!]}]
   (fn [file-id]
     (execute! {:delete-from :file
-               :where [:= :id file-id]}
+               :where [:= :id (UUID/fromString file-id)]}
               true)))
 
 (defmethod ig/init-key ::select-file [_ {:keys [execute!]}]

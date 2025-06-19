@@ -30,16 +30,20 @@
 
          :telegram.dialogue.core/fsm
          {:user-id->role #ig/ref :telegram.dialogue.core/user-id->role
-          :user-id->state #ig/ref :telegram.dialogue.temp-data/user-id->state
-          :set-user-state! #ig/ref :telegram.dialogue.temp-data/set-user-state!
+          :user-id->state #ig/ref :telegram.dialogue.tmp-data/user-id->state
+          :set-user-state! #ig/ref :telegram.dialogue.tmp-data/set-user-state!
           :send-message! #ig/ref :telegram.core/send-message!
-          :default-state {:handler #ig/ref :telegram.dialogue.keyboard/new-keyboard
+          :default-state {:handler
+                          [#ig/ref :telegram.dialogue.keyboard/upd->delete-and-clear-tmp-msg!
+                           #ig/ref :telegram.dialogue.keyboard/main-keyboard]
                           :roles [:user :admin]}
           :config
           {:default
            {:command
-            {:start {:handler #ig/ref :telegram.dialogue.core/start
-                     :roles [:anonymous]}
+            {:start {:handler
+                     [#ig/ref :telegram.dialogue.keyboard/upd->delete-and-clear-tmp-msg!
+                      #ig/ref :telegram.dialogue.keyboard/main-keyboard]
+                     :roles [:anonymous :admin :user]}
              :upload {:next :video-name
                       :handler #ig/ref :telegram.dialogue.files/upload}
              :rename {:next :rename
@@ -57,8 +61,8 @@
              :handler #ig/ref :telegram.dialogue.files/video-name}}
 
            :rename {:text {:handler #ig/ref :telegram.dialogue.files/renaming-file}}
-           
-           :delete {:text {:handler #ig/ref :telegram.dialogue.files/deleting-file}}
+
+           :delete {:command {:deleting {:handler #ig/ref :telegram.dialogue.files/deleting-file}}}
 
            :video-file
            {:file
@@ -68,90 +72,99 @@
                                                 :admin-chat-ids #custom/env-to-set "TELEGRAM_ADMIN_IDS"}
          :telegram.dialogue.core/start {:invite #env "INVITE"
                                         :insert-user! #ig/ref :db.model/insert-user!
-                                        :new-keyboard #ig/ref :telegram.dialogue.keyboard/new-keyboard}
+                                        :main-keyboard #ig/ref :telegram.dialogue.keyboard/main-keyboard}
 
-         :telegram.dialogue.temp-data/user-data {}
-         :telegram.dialogue.temp-data/user-id->state  #ig/ref :telegram.dialogue.temp-data/user-data
-         :telegram.dialogue.temp-data/set-user-state! #ig/ref :telegram.dialogue.temp-data/user-data
-         :telegram.dialogue.temp-data/user-id->keyboard-msg-id #ig/ref :telegram.dialogue.temp-data/user-data
-         :telegram.dialogue.temp-data/set-user-keyboard-msg-id! #ig/ref :telegram.dialogue.temp-data/user-data
-         :telegram.dialogue.temp-data/user-id->clear-keyboard-msg-id! #ig/ref :telegram.dialogue.temp-data/user-data
-         :telegram.dialogue.temp-data/user-id->video-msg-id #ig/ref :telegram.dialogue.temp-data/user-data
-         :telegram.dialogue.temp-data/set-user-video-msg-id! #ig/ref :telegram.dialogue.temp-data/user-data
-         :telegram.dialogue.temp-data/user-id->clear-video-msg-id! #ig/ref :telegram.dialogue.temp-data/user-data
-         :telegram.dialogue.temp-data/user-id->page #ig/ref :telegram.dialogue.temp-data/user-data
-         :telegram.dialogue.temp-data/user-id+page->update-page! #ig/ref :telegram.dialogue.temp-data/user-data
-         :telegram.dialogue.temp-data/user-id->video-name #ig/ref :telegram.dialogue.temp-data/user-data
-         :telegram.dialogue.temp-data/set-user-video-name! #ig/ref :telegram.dialogue.temp-data/user-data
-         :telegram.dialogue.temp-data/user-id->clear-video-name! #ig/ref :telegram.dialogue.temp-data/user-data
-         :telegram.dialogue.temp-data/set-user-rename-file-id! #ig/ref :telegram.dialogue.temp-data/user-data
-         :telegram.dialogue.temp-data/user-id->rename-file-id #ig/ref :telegram.dialogue.temp-data/user-data
-         :telegram.dialogue.temp-data/user-id->clear-rename-file-id! #ig/ref :telegram.dialogue.temp-data/user-data
+         :telegram.dialogue.tmp-data/user-data {}
+         :telegram.dialogue.tmp-data/user-id->state  #ig/ref :telegram.dialogue.tmp-data/user-data
+         :telegram.dialogue.tmp-data/set-user-state! #ig/ref :telegram.dialogue.tmp-data/user-data
+         :telegram.dialogue.tmp-data/user-id->keyboard-msg-id #ig/ref :telegram.dialogue.tmp-data/user-data
+         :telegram.dialogue.tmp-data/set-user-keyboard-msg-id!
+         {:user-data #ig/ref :telegram.dialogue.tmp-data/user-data
+          :add-user-tmp-msg-ids! #ig/ref :telegram.dialogue.tmp-data/add-user-tmp-msg-ids!}
+         :telegram.dialogue.tmp-data/user-id->clear-keyboard-msg-id! #ig/ref :telegram.dialogue.tmp-data/user-data
+         :telegram.dialogue.tmp-data/user-id->tmp-msg-ids #ig/ref :telegram.dialogue.tmp-data/user-data
+         :telegram.dialogue.tmp-data/add-user-tmp-msg-ids! #ig/ref :telegram.dialogue.tmp-data/user-data
+         :telegram.dialogue.tmp-data/user-id->clear-tmp-msg-ids! #ig/ref :telegram.dialogue.tmp-data/user-data
+         :telegram.dialogue.tmp-data/user-id->page #ig/ref :telegram.dialogue.tmp-data/user-data
+         :telegram.dialogue.tmp-data/user-id+page->update-page! #ig/ref :telegram.dialogue.tmp-data/user-data
+         :telegram.dialogue.tmp-data/user-id->video-name #ig/ref :telegram.dialogue.tmp-data/user-data
+         :telegram.dialogue.tmp-data/set-user-video-name! #ig/ref :telegram.dialogue.tmp-data/user-data
+         :telegram.dialogue.tmp-data/user-id->clear-video-name! #ig/ref :telegram.dialogue.tmp-data/user-data
+         :telegram.dialogue.tmp-data/set-user-rename-file-id! #ig/ref :telegram.dialogue.tmp-data/user-data
+         :telegram.dialogue.tmp-data/user-id->rename-file-id #ig/ref :telegram.dialogue.tmp-data/user-data
+         :telegram.dialogue.tmp-data/user-id->clear-rename-file-id! #ig/ref :telegram.dialogue.tmp-data/user-data
+         :telegram.dialogue.tmp-data/user-id->clear-critical-tmp-data
+         [#ig/ref :telegram.dialogue.tmp-data/user-id->clear-video-name!
+          #ig/ref :telegram.dialogue.tmp-data/user-id->clear-rename-file-id!]
 
-         :telegram.dialogue.keyboard/check-delete-clear-msg-id #ig/ref :telegram.core/bot
-         :telegram.dialogue.keyboard/user-id->delete-keyboard-msg-id!
-         {:user-id->clear-keyboard-msg-id! #ig/ref :telegram.dialogue.temp-data/user-id->clear-keyboard-msg-id!
-          :user-id->keyboard-msg-id #ig/ref :telegram.dialogue.temp-data/user-id->keyboard-msg-id
-          :check-delete-clear-msg-id #ig/ref :telegram.dialogue.keyboard/check-delete-clear-msg-id}
+         :telegram.dialogue.keyboard/send-admin-keyboard!
+         {:send-message! #ig/ref :telegram.core/send-message!
+          :add-user-tmp-msg-ids! #ig/ref :telegram.dialogue.tmp-data/add-user-tmp-msg-ids!}
 
-         :telegram.dialogue.keyboard/user-id->delete-video-msg-id!
-         {:user-id->clear-video-msg-id! #ig/ref :telegram.dialogue.temp-data/user-id->clear-video-msg-id!
-          :user-id->video-msg-id #ig/ref :telegram.dialogue.temp-data/user-id->video-msg-id
-          :check-delete-clear-msg-id #ig/ref :telegram.dialogue.keyboard/check-delete-clear-msg-id}
+         :telegram.dialogue.keyboard/user-id->delete-and-clear-tmp-msg!
+         {:bot #ig/ref :telegram.core/bot
+          :user-id->tmp-msg-ids #ig/ref :telegram.dialogue.tmp-data/user-id->tmp-msg-ids
+          :user-id->clear-tmp-msg-ids! #ig/ref :telegram.dialogue.tmp-data/user-id->clear-tmp-msg-ids!}
+
+         :telegram.dialogue.keyboard/upd->delete-and-clear-tmp-msg! #ig/ref :telegram.dialogue.keyboard/user-id->delete-and-clear-tmp-msg!
 
          :telegram.dialogue.keyboard/main-keyboard
          {:send-message! #ig/ref :telegram.core/send-message!
           :list-files #ig/ref :db.model/list-files
           :total-pages #ig/ref :db.model/file-total-pages
-          :user-id->page #ig/ref :telegram.dialogue.temp-data/user-id->page
-          :user-id->delete-keyboard-msg-id! #ig/ref :telegram.dialogue.keyboard/user-id->delete-keyboard-msg-id!
-          :set-user-keyboard-msg-id! #ig/ref :telegram.dialogue.temp-data/set-user-keyboard-msg-id!}
-
-         :telegram.dialogue.keyboard/new-keyboard
-         {:user-id->delete-video-msg-id! #ig/ref :telegram.dialogue.keyboard/user-id->delete-video-msg-id!
-          :main-keyboard #ig/ref :telegram.dialogue.keyboard/main-keyboard}
+          :user-id->page #ig/ref :telegram.dialogue.tmp-data/user-id->page
+          :user-id->clear-critical-tmp-data #ig/ref :telegram.dialogue.tmp-data/user-id->clear-critical-tmp-data
+          :set-user-keyboard-msg-id! #ig/ref :telegram.dialogue.tmp-data/set-user-keyboard-msg-id!}
 
          :telegram.dialogue.keyboard/page
          {:bot #ig/ref :telegram.core/bot
-          :user-id->keyboard-msg-id #ig/ref :telegram.dialogue.temp-data/user-id->keyboard-msg-id
+          :user-id->keyboard-msg-id #ig/ref :telegram.dialogue.tmp-data/user-id->keyboard-msg-id
           :total-pages #ig/ref :db.model/file-total-pages
           :list-files #ig/ref :db.model/list-files
-          :user-id+page->update-page! #ig/ref :telegram.dialogue.temp-data/user-id+page->update-page!}
+          :user-id+page->update-page! #ig/ref :telegram.dialogue.tmp-data/user-id+page->update-page!}
 
          :telegram.dialogue.files/read
          {:bot #ig/ref :telegram.core/bot
           :main-keyboard #ig/ref :telegram.dialogue.keyboard/main-keyboard
+          :send-admin-keyboard! #ig/ref :telegram.dialogue.keyboard/send-admin-keyboard!
           :select-file #ig/ref :db.model/select-file
           :download-file #ig/ref :storage/download-file
-          :user-id->delete-video-msg-id! #ig/ref :telegram.dialogue.keyboard/user-id->delete-video-msg-id!
-          :user-id->delete-keyboard-msg-id! #ig/ref :telegram.dialogue.keyboard/user-id->delete-keyboard-msg-id!
-          :set-user-video-msg-id! #ig/ref :telegram.dialogue.temp-data/set-user-video-msg-id!}
+          :user-id->delete-and-clear-tmp-msg! #ig/ref :telegram.dialogue.keyboard/user-id->delete-and-clear-tmp-msg!
+          :add-user-tmp-msg-ids! #ig/ref :telegram.dialogue.tmp-data/add-user-tmp-msg-ids!}
          :telegram.dialogue.files/upload #ig/ref :telegram.core/send-message!
-         :telegram.dialogue.files/video-name {:send-message! #ig/ref :telegram.core/send-message!
-                                              :set-user-video-name! #ig/ref :telegram.dialogue.temp-data/set-user-video-name!}
+         :telegram.dialogue.files/video-name
+         {:send-message! #ig/ref :telegram.core/send-message!
+          :set-user-video-name! #ig/ref :telegram.dialogue.tmp-data/set-user-video-name!}
+
          :telegram.dialogue.files/video-file
          {:send-message! #ig/ref :telegram.core/send-message!
           :upload-file! #ig/ref :storage/upload-file!
           :insert-file! #ig/ref :db.model/insert-file!
           :download-file #ig/ref :telegram.core/download-file
-          :user-id->video-name #ig/ref :telegram.dialogue.temp-data/user-id->video-name
-          :user-id->clear-video-name! #ig/ref :telegram.dialogue.temp-data/user-id->clear-video-name!
-          :new-keyboard #ig/ref :telegram.dialogue.keyboard/new-keyboard}
+          :user-id->video-name #ig/ref :telegram.dialogue.tmp-data/user-id->video-name
+          :user-id->clear-video-name! #ig/ref :telegram.dialogue.tmp-data/user-id->clear-video-name!
+          :main-keyboard #ig/ref :telegram.dialogue.keyboard/main-keyboard}
 
          :telegram.dialogue.files/rename-file
          {:send-message! #ig/ref :telegram.core/send-message!
-          :set-user-rename-file-id! #ig/ref :telegram.dialogue.temp-data/set-user-rename-file-id!}
+          :set-user-rename-file-id! #ig/ref :telegram.dialogue.tmp-data/set-user-rename-file-id!}
 
          :telegram.dialogue.files/renaming-file
          {:send-message! #ig/ref :telegram.core/send-message!
+          :main-keyboard #ig/ref :telegram.dialogue.keyboard/main-keyboard
           :update-file-name! #ig/ref :db.model/update-file-name!
-          :user-id->rename-file-id #ig/ref :telegram.dialogue.temp-data/user-id->rename-file-id
-          :user-id->clear-rename-file-id! #ig/ref :telegram.dialogue.temp-data/user-id->clear-rename-file-id!}
+          :user-id->rename-file-id #ig/ref :telegram.dialogue.tmp-data/user-id->rename-file-id
+          :user-id->delete-and-clear-tmp-msg! #ig/ref :telegram.dialogue.keyboard/user-id->delete-and-clear-tmp-msg!
+          :user-id->clear-rename-file-id! #ig/ref :telegram.dialogue.tmp-data/user-id->clear-rename-file-id!}
 
-         :telegram.dialogue.files/delete-file #ig/ref :telegram.core/send-message!
+         :telegram.dialogue.files/delete-file
+         {:send-message! #ig/ref :telegram.core/send-message!
+          :add-user-tmp-msg-ids! #ig/ref :telegram.dialogue.tmp-data/add-user-tmp-msg-ids!}
 
          :telegram.dialogue.files/deleting-file
          {:send-message! #ig/ref :telegram.core/send-message!
+          :user-id->delete-and-clear-tmp-msg! #ig/ref :telegram.dialogue.keyboard/user-id->delete-and-clear-tmp-msg!
+          :main-keyboard #ig/ref :telegram.dialogue.keyboard/main-keyboard
           :delete-file! #ig/ref :db.model/delete-file!}
 
          :storage/client

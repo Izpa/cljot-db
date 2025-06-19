@@ -1,4 +1,4 @@
-(ns telegram.dialogue.temp-data
+(ns telegram.dialogue.tmp-data
   (:require
    [integrant.core :as ig]
    [taoensso.timbre :as log]
@@ -21,10 +21,11 @@
     (log/info (pformat @user-data))
     (get-in @user-data [user-id :keyboard-msg-id])))
 
-(defmethod ig/init-key ::set-user-keyboard-msg-id! [_ user-data]
+(defmethod ig/init-key ::set-user-keyboard-msg-id! [_ {:keys [user-data add-user-tmp-msg-ids!]}]
   (fn [user-id keyboard-msg-id]
     (log/info "in set-user-keyboard-msg-id")
     (log/info (pformat @user-data))
+    (add-user-tmp-msg-ids! user-id keyboard-msg-id)
     (swap! user-data assoc-in [user-id :keyboard-msg-id] keyboard-msg-id)))
 
 (defmethod ig/init-key ::user-id->clear-keyboard-msg-id! [_ user-data]
@@ -33,23 +34,17 @@
     (log/info (pformat @user-data))
     (swap! user-data update user-id dissoc :keyboard-msg-id)))
 
-(defmethod ig/init-key ::user-id->video-msg-id [_ user-data]
+(defmethod ig/init-key ::user-id->tmp-msg-ids [_ user-data]
   (fn [user-id]
-    (log/info "in user-id->video-msg-id")
-    (log/info (pformat @user-data))
-    (get-in @user-data [user-id :video-msg-id])))
+    (get-in @user-data [user-id :tmp-msg-ids])))
 
-(defmethod ig/init-key ::set-user-video-msg-id! [_ user-data]
-  (fn [user-id video-msg-id]
-    (log/info "in set-user-video-msg-id")
-    (log/info (pformat @user-data))
-    (swap! user-data assoc-in [user-id :video-msg-id] video-msg-id)))
+(defmethod ig/init-key ::add-user-tmp-msg-ids! [_ user-data]
+  (fn [user-id & tmp-msg-ids]
+    (swap! user-data update-in [user-id :tmp-msg-ids] (fnil into #{}) tmp-msg-ids)))
 
-(defmethod ig/init-key ::user-id->clear-video-msg-id! [_ user-data]
+(defmethod ig/init-key ::user-id->clear-tmp-msg-ids! [_ user-data]
   (fn [user-id]
-    (log/info "in clear-user-video-msg-id")
-    (log/info (pformat @user-data))
-    (swap! user-data update user-id dissoc :video-msg-id)))
+    (swap! user-data update user-id dissoc :tmp-msg-ids)))
 
 (defmethod ig/init-key ::user-id->page [_ user-data]
   (fn [user-id]
@@ -82,3 +77,8 @@
 (defmethod ig/init-key ::user-id->clear-rename-file-id! [_ user-data]
   (fn [user-id]
     (swap! user-data update user-id dissoc :rename-file-id)))
+
+(defmethod ig/init-key ::user-id->clear-critical-tmp-data [_ clear-fns]
+  (fn [user-id]
+    (doseq [f clear-fns]
+      (f user-id))))
