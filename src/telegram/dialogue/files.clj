@@ -135,7 +135,7 @@
   (fn [upd]
     (log/info "in :renaming-file")
     (let [user-id (-> upd :user :id)
-          new-name (-> upd :val)
+          new-name (:val upd)
           file-id (user-id->rename-file-id user-id)]
       (log/info "user-id: " user-id "; new-name: " new-name "; file-id: " file-id)
       (if (and file-id new-name)

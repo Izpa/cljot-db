@@ -4,7 +4,8 @@
    [taoensso.timbre :as log]
    [telegrambot-lib.core :as tbot]))
 
-(defn admin-keyboard [file-id]
+(defn admin-keyboard
+  [file-id]
   {:inline_keyboard [[{:text "rename" :callback_data (str "/rename " file-id)}
                       {:text "delete" :callback_data (str "/delete " file-id)}]]})
 
