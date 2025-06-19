@@ -75,7 +75,7 @@
        (->> pages
             (make-keyboard (= :admin (get-in upd [:user :role])) (list-files page) page)
             (assoc {} :reply_markup)
-            (send-message! user-id msg)
+            (send-message! user-id (str "Page " page "/" pages " " msg))
             :result
             :message_id
             (set-user-keyboard-msg-id! user-id))))))
@@ -93,5 +93,13 @@
           pages    (total-pages)
           msg-id   (user-id->keyboard-msg-id user-id)
           keyboard (make-keyboard (= :admin (get-in upd [:user :role])) files page pages)]
-      (tbot/edit-message-reply-markup bot user-id msg-id keyboard)
+      (log/info "Edit message text: "
+                (tbot/edit-message-text bot
+                                        user-id
+                                        msg-id (str "Page " page "/" pages " Выберите видео:")))
+      (log/info "Edit message keyboard: "
+                (tbot/edit-message-reply-markup bot
+                                                user-id
+                                                msg-id
+                                                keyboard))
       (user-id+page->update-page! user-id page))))
