@@ -5,4 +5,4 @@
   :password-secret "password"}
 
  :test-utils/db-shutdown 
- {:execute! #ig/ref :db/execute!}}
+ {:execute! #ig/ref :db.core/execute!}}

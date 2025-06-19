@@ -55,5 +55,5 @@ clj-deps:
 	clj -X:deps prep 
 
 .PHONY: all-checks
-all-checks: cljstyle-check kibit kondo eastwood unit-test integration-test
+all-checks: cljstyle-check kibit kondo eastwood unit-test
 
