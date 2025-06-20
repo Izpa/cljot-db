@@ -35,14 +35,14 @@
           :send-message! #ig/ref :telegram.core/send-message!
           :default-state {:handler
                           [#ig/ref :telegram.dialogue.keyboard/upd->delete-and-clear-tmp-msg!
-                           #ig/ref :telegram.dialogue.keyboard/main-keyboard]
+                           #ig/ref :telegram.dialogue.core/start]
                           :roles [:user :admin]}
           :config
           {:default
            {:command
             {:start {:handler
                      [#ig/ref :telegram.dialogue.keyboard/upd->delete-and-clear-tmp-msg!
-                      #ig/ref :telegram.dialogue.keyboard/main-keyboard]
+                      #ig/ref :telegram.dialogue.core/start]
                      :roles [:anonymous :admin :user]}
              :upload {:next :video-name
                       :handler #ig/ref :telegram.dialogue.files/upload}
@@ -71,6 +71,7 @@
          :telegram.dialogue.core/user-id->role {:select-user #ig/ref :db.model/select-user
                                                 :admin-chat-ids #custom/env-to-set "TELEGRAM_ADMIN_IDS"}
          :telegram.dialogue.core/start {:invite #env "INVITE"
+                                        :send-message! #ig/ref :telegram.core/send-message!
                                         :insert-user! #ig/ref :db.model/insert-user!
                                         :main-keyboard #ig/ref :telegram.dialogue.keyboard/main-keyboard}
 
