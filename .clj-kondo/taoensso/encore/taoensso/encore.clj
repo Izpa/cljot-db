@@ -14,9 +14,9 @@
     {:node
      (with-meta
        (hooks/list-node
-         [(hooks/token-node 'def)
-          (hooks/token-node (hooks/sexpr sym))
-          (hooks/token-node (hooks/sexpr src))])
+        [(hooks/token-node 'def)
+         (hooks/token-node (hooks/sexpr sym))
+         (hooks/token-node (hooks/sexpr src))])
        (meta src))}))
 
 (defn defn-cached
@@ -24,14 +24,14 @@
   (let [[sym _opts binding-vec & body] (rest (:children node))]
     {:node
      (hooks/list-node
-       (list
-         (hooks/token-node 'def)
-         sym
-         (hooks/list-node
-           (list*
-             (hooks/token-node 'fn)
-             binding-vec
-             body))))}))
+      (list
+       (hooks/token-node 'def)
+       sym
+       (hooks/list-node
+        (list*
+         (hooks/token-node 'fn)
+         binding-vec
+         body))))}))
 
 (defn defonce
   [{:keys [node]}]
@@ -44,8 +44,8 @@
         sym+meta (if attr-map (with-meta sym attr-map) sym)
         rewritten
         (hooks/list-node
-          [(hooks/token-node 'clojure.core/defonce)
-           sym+meta
-           init-expr])]
+         [(hooks/token-node 'clojure.core/defonce)
+          sym+meta
+          init-expr])]
 
     {:node rewritten}))
