@@ -11,14 +11,18 @@
       (select-user user-id) :user
       :else :anonymous)))
 
-(defmethod ig/init-key ::start [_ {:keys [invite insert-user! main-keyboard]}]
+(defmethod ig/init-key ::start [_ {:keys [invite
+                                          insert-user!
+                                          main-keyboard
+                                          send-message!]}]
   (fn [upd]
     (let [role (-> upd :user :role)]
       (if (= role :anonymous)
         (when (= invite
                  (-> upd :val :args first))
           (insert-user! (:user upd))
-          (main-keyboard upd "Добро пожаловать! Выберите видео:"))
+          (-> upd :user :id (send-message! "Добро пожаловать!"))
+          (main-keyboard upd))
         (main-keyboard upd)))))
 
 (defmethod ig/init-key ::fsm [_ {:keys [user-id->role
