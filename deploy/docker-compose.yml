@@ -1,0 +1,116 @@
+# cljot-crud — self-hosted stack for a new server (no CapRover).
+# Services: postgres (bot DB) + seaweedfs (S3 storage, MinIO replacement) + bot.
+# One-shot helper services (restore / upload) live behind the "tools" profile
+# and are invoked by setup.sh via `docker compose run`.
+#
+# Run from this directory (deploy/):  ./setup.sh
+# Build context for the bot is the repo root (..), so run compose from here.
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DB_NAME}
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - pg-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  seaweedfs:
+    image: chrislusf/seaweedfs:3.80
+    restart: unless-stopped
+    # `server -s3` runs master+volume+filer+S3 gateway in one process.
+    # -s3.config points at identities (root key that can create buckets).
+    command: >
+      server -dir=/data -s3 -s3.port=8333
+      -s3.config=/etc/seaweedfs/s3.json
+      -master.volumeSizeLimitMB=2000
+    volumes:
+      - seaweed-data:/data
+      - ./seaweed/s3.json:/etc/seaweedfs/s3.json:ro
+    healthcheck:
+      # S3 gateway answers unauthenticated GET / with HTTP 403 once it is up.
+      # busybox wget returns exit 1 both for 403 and for "connection refused",
+      # so distinguish by message: refused => unhealthy, any HTTP reply => healthy.
+      # NB: use 127.0.0.1 (weed binds IPv4 only; "localhost" may resolve to ::1).
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:8333/ 2>&1 | grep -qi 'connection refused' && exit 1 || exit 0"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 20s
+
+  bot:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      seaweedfs:
+        condition: service_healthy
+    environment:
+      # --- Postgres (in-network) ---
+      DB_HOST: postgres
+      DB_PORT: "5432"
+      DB_NAME: ${DB_NAME}
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      # --- S3 / SeaweedFS (in-network) ---
+      S3_API_HOST: seaweedfs
+      S3_API_PORT: "8333"
+      MINIO_USER: ${MINIO_USER}
+      MINIO_PASSWORD: ${MINIO_PASSWORD}
+      MINIO_BUCKET: ${MINIO_BUCKET}
+      # --- Telegram ---
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
+      TELEGRAM_ADMIN_IDS: ${TELEGRAM_ADMIN_IDS}
+      INVITE: ${INVITE}
+      # SELF_URL intentionally unset -> long-polling mode (no public URL needed)
+      # --- Optional tuning ---
+      PAGE_SIZE: ${PAGE_SIZE:-3}
+      HTTP_PORT: "8080"
+
+  # ---- one-shot tools (profile: tools) ----
+  db-restore:
+    image: postgres:16-alpine
+    profiles: ["tools"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      PGPASSWORD: ${DB_PASSWORD}
+    volumes:
+      - ./data/dumps:/dumps:ro
+    entrypoint: ["sh", "-c"]
+    command:
+      - 'psql -h postgres -U ${DB_USER} -d ${DB_NAME} -v ON_ERROR_STOP=1 -f /dumps/cljot_default.sql'
+
+  s3-upload:
+    image: rclone/rclone:1.68
+    profiles: ["tools"]
+    depends_on:
+      seaweedfs:
+        condition: service_healthy
+    environment:
+      RCLONE_CONFIG_S3_TYPE: s3
+      RCLONE_CONFIG_S3_PROVIDER: Other
+      RCLONE_CONFIG_S3_ENDPOINT: http://seaweedfs:8333
+      RCLONE_CONFIG_S3_ACCESS_KEY_ID: ${MINIO_USER}
+      RCLONE_CONFIG_S3_SECRET_ACCESS_KEY: ${MINIO_PASSWORD}
+      RCLONE_CONFIG_S3_FORCE_PATH_STYLE: "true"
+    volumes:
+      - ./data/objects:/objects:ro
+    entrypoint: ["sh", "-c"]
+    command:
+      - 'rclone mkdir s3:${MINIO_BUCKET} && rclone copy --progress /objects s3:${MINIO_BUCKET}'
+
+volumes:
+  pg-data:
+  seaweed-data:

@@ -1,0 +1,6 @@
+# Secrets and generated config — never commit.
+.env
+seaweed/s3.json
+
+# Migrated data (DB dump + video objects) lives outside git.
+data/

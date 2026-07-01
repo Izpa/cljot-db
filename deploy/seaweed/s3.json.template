@@ -1,0 +1,14 @@
+{
+  "identities": [
+    {
+      "name": "cljot",
+      "credentials": [
+        {
+          "accessKey": "__MINIO_USER__",
+          "secretKey": "__MINIO_PASSWORD__"
+        }
+      ],
+      "actions": ["Admin", "Read", "Write", "List", "Tagging"]
+    }
+  ]
+}
