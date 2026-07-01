@@ -108,8 +108,18 @@ docker compose run --rm --entrypoint rclone s3-upload ls "s3:$MINIO_BUCKET" | wc
   creates buckets" semantics, so no bot code changes are needed: the bot auto-creates
   the `MINIO_BUCKET` on first start. `MINIO_USER`/`MINIO_PASSWORD` are both the
   SeaweedFS root credentials and the bot's S3 credentials.
-- **File coverage.** The menu has 42 rows, but only 36 have a stored video
-  (`storage_key` set). The other 6 were served via Telegram `copy-message` and never
-  had an object — this matches the old behaviour.
+- **File coverage & the bot identity.** The menu has 42 rows; **36** have a stored
+  video (`storage_key`, restored into SeaweedFS) and **6** have no object — they were
+  only ever served via Telegram `copy-message` from user `108673844`'s chat.
+  The bot's `read` handler tries `copy-message` first and falls back to downloading
+  from S3, so:
+  - the 36 "file" rows work regardless (S3 fallback);
+  - the 6 "Telegram-only" rows keep working **as long as you keep the same bot** —
+    `file_id` and `message_id` are bound to the bot ID (the number before `:` in the
+    token), **not** to the token string. Reusing the old token *or* regenerating it via
+    `@BotFather` (`/token` / `/revoke`) preserves them. Do **not** create a new bot with
+    `/newbot` — that changes the bot ID and breaks those 6 (they can't be recovered from
+    the migrated data, since no object bytes exist for them). The only other way they
+    break is if those messages were deleted from the user's chat.
 - **Postgres 16.** Data was captured from PG 14; the plain-SQL dump restores into PG 16
   cleanly. Migrations are already in the dump, so migratus won't re-run them.
